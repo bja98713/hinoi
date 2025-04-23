@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-4">
+  <h1>Détails de la Facturation</h1>
+  <table class="table table-bordered">
+    <tbody>
+      <tr>
+        <th>Numéro Facture</th>
+        <td>{{ facturation.numero_facture }}</td>
+      </tr>
+      <tr>
+        <th>Numéro DN</th>
+        <td>{{ facturation.dn }}</td>
+      </tr>
+      <tr>
+        <th>Nom</th>
+        <td>{{ facturation.nom }}</td>
+      </tr>
+      <tr>
+        <th>Prénom</th>
+        <td>{{ facturation.prenom }}</td>
+      </tr>
+      <tr>
+        <th>Date de Naissance</th>
+        <td>{{ facturation.date_naissance }}</td>
+      </tr>
+      <tr>
+        <th>Date de l'acte</th>
+        <td>{{ facturation.date_acte }}</td>
+      </tr>
+      <tr>
+        <th>Date de la facture</th>
+        <td>{{ facturation.date_facture }}</td>
+      </tr>
+      <tr>
+        <th>Code Acte</th>
+        <td>{{ facturation.code_acte.code_acte }}</td>
+      </tr>
+      <tr>
+        <th>Total Acte</th>
+        <td>{{ facture.total_acte|floatformat:"0" }}</td>
+      </tr>
+      <tr>
+        <th>Tiers Payant</th>
+        <td>{{ facturation.tiers_payant|floatformat:"0" }}</td>
+      </tr>
+      <tr>
+        <th>Total Payé</th>
+        <td>{{ facturation.total_paye|floatformat:"0" }}</td>
+      </tr>
+      <tr>
+        <th>Statut Dossier</th>
+        <td>{{ facturation.get_statut_dossier_display }}</td>
+      </tr>
+      <!-- Ajoutez d'autres champs si nécessaire -->
+    </tbody>
+  </table>
+  <a href="{% url 'facturation_list' %}" class="btn btn-secondary">Retour à la liste</a>
+  <button onclick="window.print()" class="btn btn-primary">Imprimer</button>
+  <a href="{% url 'print_facture' facturation.pk %}" class="btn btn-primary">Imprimer</a>
+</div>
+{% endblock %}
+
