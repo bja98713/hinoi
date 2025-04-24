@@ -42,11 +42,11 @@
       </tr>
       <tr>
         <th>Tiers Payant</th>
-        <td>{{ facturation.tiers_payant|floatformat:"0" }}</td>
+        <td>{{ facturation.tiers_payant| default_if_none:"" | floatformat:"0" }}</td>
       </tr>
       <tr>
         <th>Total Payé</th>
-        <td>{{ facturation.total_paye|floatformat:"0" }}</td>
+        <td>{{ facturation.total_paye|default_if_none:""|floatformat:"0" }}</td>
       </tr>
       <tr>
         <th>Statut Dossier</th>

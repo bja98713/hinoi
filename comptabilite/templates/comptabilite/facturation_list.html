@@ -1,44 +1,70 @@
 {% extends 'base.html' %}
 {% block content %}
-<div class="table-responsive">
-  <h1>Activité Chronologique</h1>
-  <a href="{% url 'facturation_create' %}" class="btn btn-primary mb-3">+ Nouvelle Facturation</a>
-  
-  <table class="table table-bordered table-striped">
-    <thead class="thead-dark">
+<div class="container mt-4">
+  <h1>Actes Journaliers</h1>
+  <table class="table table-striped text-center">
+    <thead>
       <tr>
-        <th>Numéro DN</th>
-        <th>Numéro Facture</th>
-        <th>Nom</th>
-        <th>Prénom</th>
-        <th>Date Acte</th>
-        <th>Code Acte</th>
-        <th>Statut Dossier</th>
+        <th>Date acte</th>
+        <th>Numéro facture</th>
+        <th>DN</th>
+        <th>Nom/Prénom</th>
+        <th>Acte</th>
         <th>Actions</th>
       </tr>
     </thead>
     <tbody>
       {% for facturation in facturations %}
       <tr>
-        <td>{{ facturation.dn }}</td>
+        <td>{{ facturation.date_acte|date:"d/m/Y" }}</td>
         <td>{{ facturation.numero_facture }}</td>
-        <td>{{ facturation.nom }}</td>
-        <td>{{ facturation.prenom }}</td>
-        <td>{{ facturation.date_acte }}</td>
-        <td>{{ facturation.code_acte.code_acte }}</td>
-        <td>{{ facturation.get_statut_dossier_display }}</td>
+        <td>{{ facturation.dn }}</td>
+        <td>{{ facturation.nom }}/{{ facturation.prenom }}</td>
+        <td>{{ facturation.code_acte }}</td>
         <td>
+          {# Vos trois boutons existants #}
           <a href="{% url 'facturation_detail' facturation.pk %}" class="btn btn-info btn-sm">Détails</a>
           <a href="{% url 'facturation_update' facturation.pk %}" class="btn btn-warning btn-sm">Modifier</a>
           <a href="{% url 'facturation_delete' facturation.pk %}" class="btn btn-danger btn-sm">Supp</a>
+
+          {# Bouton Impression conditionnel #}
+          {% if facturation.code_acte.parcours_soin %}
+            <a href="{% url 'print_facture' facturation.pk %}" class="btn btn-primary btn-sm">
+              Imprimer Feuille CPS
+            </a>
+          {% else %}
+            <button
+              class="btn btn-primary btn-sm print-btn"
+              data-pk="{{ facturation.pk }}"
+            >
+              Imprimer de la Facture
+            </button>
+          {% endif %}
         </td>
-      </tr>
-      {% empty %}
-      <tr>
-        <td colspan="7">Aucune facturation trouvée.</td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
 </div>
+
+{# Charger jQuery une seule fois #}
+<script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+<script>
+$(function(){
+  $('.print-btn').on('click', function(){
+    var pk = $(this).data('pk'),
+        btn = $(this);
+
+    // Appel AJAX pour générer et sauvegarder le n° de facture
+    $.get("{% url 'generate_numero' 0 %}".replace('/0/', '/' + pk + '/'), function(data){
+      if(data.numero_facture){
+        // Mettre à jour la cellule du numéro de facture
+        btn.closest('tr').find('td:first').text(data.numero_facture);
+      }
+      // Lancer l’impression navigateur
+      window.print();
+    });
+  });
+});
+</script>
 {% endblock %}

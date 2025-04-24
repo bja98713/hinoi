@@ -175,8 +175,9 @@ def print_facture(request, pk):
     c.drawString(11.5 * cm, hauteur - 20.3 * cm, f"{variable_2}")
     c.drawString(12.5 * cm, hauteur - 20.3 * cm, f"{total_acte}")
     c.drawString(10.0 * cm, hauteur - 24.3 * cm, f"{total_acte}")
-    c.drawString(7.5 * cm, hauteur - 27.6 * cm, f"{total_paye}")
-    c.drawString(11.5 * cm, hauteur - 27.6 * cm, f"{tiers_payant}")
+    if facture.regime_lm:
+        c.drawString(7.5 * cm, hauteur - 27.6 * cm, f"{total_paye}")
+        c.drawString(11.5 * cm, hauteur - 27.6 * cm, f"{tiers_payant}")
 
     c.save()
     return response
