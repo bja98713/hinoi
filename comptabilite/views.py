@@ -624,5 +624,26 @@ def print_cheque_listing(request):
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
     return response
 
+from django.shortcuts import get_object_or_404
+from django.http import JsonResponse
+from django.utils import timezone
+from .models import Facturation
+
+def generate_numero(request, pk):
+    """
+    Génère et sauvegarde un numero_facture pour la Facturation pk
+    si elle n'en a pas encore et que parcours_soin == False.
+    """
+    facture = get_object_or_404(Facturation.objects.select_related('code_acte'), pk=pk)
+    code = facture.code_acte
+    # seulement si pas déjà généré et hors parcours de soins
+    if not facture.numero_facture and not (code and code.parcours_soin):
+        now = timezone.localtime()
+        facture.numero_facture = (
+            f"FQ/{now.year}/{now.month:02d}/{now.day:02d}/"
+            f"{now.hour:02d}:{now.minute:02d}"
+        )
+        facture.save(update_fields=['numero_facture'])
+    return JsonResponse({'numero_facture': facture.numero_facture or ""})
 
 

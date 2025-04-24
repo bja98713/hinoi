@@ -70,13 +70,13 @@ $(document).ready(function(){
   // 3. Confirmation avant soumission selon droit ouvert et régime LM
   $("form").on('submit', function(e){
       if ($("#id_droit_ouvert").is(":checked")){
-          if (!confirm("Tania, es-tu sûre que les droits sont ouverts ?")){
+          if (!confirm("Brigitte, es-tu sûre que les droits sont ouverts ?")){
               e.preventDefault();
               return false;
           }
       }
       if ($("#id_regime_lm").is(":checked")){
-          if (!confirm("Tania, es-tu sûre que le malade a un carnet rouge en cours de validité ?")){
+          if (!confirm("Brigitte, es-tu sûre que le malade a un carnet rouge en cours de validité ?")){
               e.preventDefault();
               return false;
           }
@@ -100,4 +100,5 @@ $(document).ready(function(){
   });
 });
 </script>
+
 {% endblock %}

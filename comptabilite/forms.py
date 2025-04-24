@@ -1,7 +1,7 @@
 from django import forms
+from django.utils import timezone
 from .models import Facturation, Paiement
-from .widgets import IntegerNumberInput  # Importez le widget personnalisé
-from .widgets import CodeSelectWidget  # Si vous utilisez déjà un widget personnalisé pour le code_acte
+from .widgets import IntegerNumberInput, CodeSelectWidget
 
 class FacturationForm(forms.ModelForm):
     # Champ pour le paiement (modalité, etc.)
@@ -29,85 +29,82 @@ class FacturationForm(forms.ModelForm):
         widgets = {
             'code_acte': CodeSelectWidget(attrs={'class': 'form-control'}),
             'date_naissance': forms.DateInput(
-                format='%Y-%m-%d',  # Format ISO pour HTML5 input type="date"
-                attrs={
-                    'placeholder': 'JJ/MM/AAAA',
-                    'class': 'form-control',
-                    'type': 'date'
-                }
+                format='%Y-%m-%d',
+                attrs={'placeholder': 'JJ/MM/AAAA', 'class': 'form-control', 'type': 'date'}
             ),
             'date_acte': forms.DateInput(
                 format='%Y-%m-%d',
-                attrs={
-                    'placeholder': 'JJ/MM/AAAA',
-                    'class': 'form-control',
-                    'type': 'date'
-                }
+                attrs={'placeholder': 'JJ/MM/AAAA', 'class': 'form-control', 'type': 'date'}
             ),
             'date_facture': forms.DateInput(
                 format='%Y-%m-%d',
-                attrs={
-                    'placeholder': 'JJ/MM/AAAA',
-                    'class': 'form-control',
-                    'type': 'date'
-                }
+                attrs={'placeholder': 'JJ/MM/AAAA', 'class': 'form-control', 'type': 'date'}
             ),
-            # Utilisation de notre widget pour formater les montants sans décimales
             'total_acte': IntegerNumberInput(attrs={'class': 'form-control'}),
             'tiers_payant': IntegerNumberInput(attrs={'class': 'form-control'}),
             'total_paye': IntegerNumberInput(attrs={'class': 'form-control'}),
         }
-    
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['date_naissance'].input_formats = ['%Y-%m-%d', '%d/%m/%Y']
-        self.fields['date_acte'].input_formats = ['%Y-%m-%d', '%d/%m/%Y']
-        self.fields['date_facture'].input_formats = ['%Y-%m-%d', '%d/%m/%Y']
-        # Si on édite une facture qui a déjà un paiement, pré-remplir les champs correspondants
-        if self.instance and hasattr(self.instance, 'paiement') and self.instance.paiement:
-            paiement = self.instance.paiement
-            self.fields['modalite_paiement'].initial = paiement.modalite_paiement
-            self.fields['banque'].initial = paiement.banque
-            self.fields['porteur'].initial = paiement.porteur
-        
-        # Réorganiser l'ordre des champs pour que modalite_paiement, banque et porteur apparaissent après total_paye.
-        field_order = list(self.fields.keys())
-        for key in ['modalite_paiement', 'banque', 'porteur']:
-            if key in field_order:
-                field_order.remove(key)
-        if 'total_paye' in field_order:
-            index = field_order.index('total_paye')
-            field_order.insert(index + 1, 'modalite_paiement')
-            field_order.insert(index + 2, 'banque')
-            field_order.insert(index + 3, 'porteur')
-        self.order_fields(field_order)
-    
+        # formats de date
+        for f in ('date_naissance','date_acte','date_facture'):
+            self.fields[f].input_formats = ['%Y-%m-%d','%d/%m/%Y']
+        # champs facultatifs
+        self.fields['tiers_payant'].required = False
+        self.fields['total_paye'].required = False
+        self.fields['numero_facture'].required = False
+        self.fields['code_acte'].required = False
+        self.fields['total_acte'].required = False
+        # pré-remplissage Paiement
+        if self.instance.pk:
+            try:
+                paiement = self.instance.paiement
+                self.fields['modalite_paiement'].initial = paiement.modalite_paiement
+                self.fields['banque'].initial = paiement.banque
+                self.fields['porteur'].initial = paiement.porteur
+            except Paiement.DoesNotExist:
+                pass
+        # réordonner
+        order = list(self.fields.keys())
+        for key in ('modalite_paiement','banque','porteur'):
+            if key in order:
+                order.remove(key)
+        if 'total_paye' in order:
+            idx = order.index('total_paye')
+            order[idx+1:idx+1] = ['modalite_paiement','banque','porteur']
+        self.order_fields(order)
+
     def clean(self):
-        cleaned_data = super().clean()
-        modalite = cleaned_data.get('modalite_paiement')
-        banque = cleaned_data.get('banque')
-        porteur = cleaned_data.get('porteur')
-        # Si le mode de paiement est "Chèque", banque et porteur sont obligatoires.
-        if modalite == 'Chèque':
-            if not banque:
-                self.add_error('banque', "Ce champ est requis pour les paiements par chèque.")
-            if not porteur:
-                self.add_error('porteur', "Ce champ est requis pour les paiements par chèque.")
-        return cleaned_data
-    
+        data = super().clean()
+        if data.get('modalite_paiement') == 'Chèque':
+            if not data.get('banque'):
+                self.add_error('banque', "Ce champ est requis pour les chèques.")
+            if not data.get('porteur'):
+                self.add_error('porteur', "Ce champ est requis pour les chèques.")
+        return data
+
     def save(self, commit=True):
-        facturation = super().save(commit=commit)
+        # Génération automatique du numéro de facture si pas parcours de soins
+        fact = super().save(commit=False)
+        code = fact.code_acte
+        if code and not code.parcours_soin:
+            now = timezone.localtime()
+            fact.numero_facture = now.strftime("FQ/%Y/%m/%d/%H:%M")
+        else:
+            fact.numero_facture = ''
+        # Sauvegarde de Facturation
+        fact.save()
+        # Paiement associé
         modalite = self.cleaned_data.get('modalite_paiement')
-        banque = self.cleaned_data.get('banque')
-        porteur = self.cleaned_data.get('porteur')
         if modalite:
-            paiement, created = Paiement.objects.get_or_create(facture=facturation)
+            paiement, _ = Paiement.objects.get_or_create(facture=fact)
             paiement.modalite_paiement = modalite
             if modalite == 'Chèque':
-                paiement.banque = banque
-                paiement.porteur = porteur
+                paiement.banque = self.cleaned_data.get('banque','')
+                paiement.porteur = self.cleaned_data.get('porteur','')
             else:
-                paiement.banque = ""
-                paiement.porteur = ""
+                paiement.banque = ''
+                paiement.porteur = ''
             paiement.save()
-        return facturation
+        return fact

@@ -14,14 +14,16 @@ class Code(models.Model):
     total_acte = models.DecimalField(max_digits=10, decimal_places=0, verbose_name="Montant total de l'acte")
     tiers_payant = models.DecimalField(
         max_digits=10,
-        decimal_places=2,
-        default=0,
-        verbose_name="Tiers payant"
+        decimal_places=0,
+        null=True,      # autorise NULL en base
+        blank=True,     # autorise vide dans les formulaires
+        verbose_name="Montant tiers payant"
     )
     total_paye = models.DecimalField(
         max_digits=10,
-        decimal_places=2,
-        default=0,
+        decimal_places=0,
+        null=True,
+        blank=True,
         verbose_name="Total payé"
     )
     
@@ -33,7 +35,7 @@ class Code(models.Model):
         verbose_name="Médecin"
     )
     
-    parcours_soin = models.BooleanField(default=False, verbose_name="Parcours de soin")
+    parcours_soin = models.BooleanField(default=False, verbose_name="Parcours de soins")
     longue_maladie = models.BooleanField(default=False, verbose_name="Longue maladie")
     code_reel = models.CharField(max_length=50, null=True, blank=True, verbose_name="Code réel")
     variable_1 = models.CharField(
@@ -87,10 +89,7 @@ class Facturation(models.Model):
     date_naissance = models.DateField(
         verbose_name="Date de naissance"
     )
-    numero_facture = models.CharField(
-        max_length=50,
-        verbose_name="Numéro de facture"
-    )
+    
     date_acte = models.DateField(
         verbose_name="Date de l'acte"
     )
@@ -110,13 +109,14 @@ class Facturation(models.Model):
         verbose_name="Régime"
     )
 
+    droit_ouvert = models.BooleanField(
+        default=False,
+        verbose_name="Droits ouverts : (oui/non)"
+    )
+
     regime_lm = models.BooleanField(
         default=False,
         verbose_name="Régime LM (oui/non)"
-    )
-    droit_ouvert = models.BooleanField(
-        default=False,
-        verbose_name="Droit ouvert (oui/non)"
     )
 
     LIEU_CHOICES = [
@@ -131,24 +131,39 @@ class Facturation(models.Model):
 
     code_acte = models.ForeignKey(
         Code,
+        null=True,      # autorise NULL en base
+        blank=True,
         on_delete=models.CASCADE,
         related_name='facturations',
         verbose_name="Code de l'acte"
     )
 
+    numero_facture = models.CharField(
+        max_length=50,
+        null=True,      # autorise NULL en base
+        blank=True,     # autorise vide dans les formulaires
+        verbose_name="Numéro de facture"
+    )
+
     total_acte = models.DecimalField(
         max_digits=10,
         decimal_places=0,
+        null=True,      # autorise NULL en base
+        blank=True,     # autorise vide dans les formulaires
         verbose_name="Montant total de l'acte (facturé)"
     )
     tiers_payant = models.DecimalField(
         max_digits=10,
         decimal_places=0,
+        null=True,      # ici
+        blank=True,     # et ici
         verbose_name="Montant tiers payant"
     )
     total_paye = models.DecimalField(
         max_digits=10,
         decimal_places=0,
+        null=True,
+        blank=True,
         verbose_name="Total payé"
     )
 
