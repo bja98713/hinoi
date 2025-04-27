@@ -10,6 +10,11 @@
   <!-- Vos styles personnalisés -->
   <link rel="stylesheet" href="{% static 'css/style.css' %}">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/css/bootstrap-datepicker.min.css">
+  <style>
+    body {
+      background-color: #f1e9ec;  /* ou #ffeef2, #ffeaea selon l’intensité désirée */
+    }
+  </style>
 </head>
 <body>
   <header class="bg-primary text-white py-3">
@@ -27,13 +32,19 @@
             <a class="nav-link text-white" href="{% url 'facturation_search_list' %}">Nouvelle Recherche</a>
           </li>
           <li class="nav-item">
-            <a class="nav-link text-white" href="{% url 'create_bordereau' %}">Edition d'un Nouveau Bordereau</a>
+            <a class="nav-link text-white" href="{% url 'create_bordereau' %}">Nouveau Bordereau</a>
           </li>
           <li class="nav-item">
             <a class="nav-link text-white" href="{% url 'activity_list' %}">Activité</a>
           </li>
           <li class="nav-item">
-            <a class="nav-link text-white" href="{% url 'cheque_listing' %}">Remise de chèques</a>
+            <a class="nav-link text-white" href="{% url 'cheque_listing' %}">Chèques</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link text-white" href="{% url 'comptabilite_summary' %}">Comptabilité</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link text-white" href="https://eu.christianlouboutin.com/fr_fr/mesdames/souliers/">What a Dream !</a>
           </li>
         </ul>
       </nav>
@@ -63,7 +74,6 @@
         autoclose: true
       });
     });
-  </script>
-
+  </script> 
 </body>
 </html>

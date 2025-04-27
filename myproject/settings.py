@@ -26,9 +26,9 @@ MIDDLEWARE = [
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'django.contrib.auth.middleware.AuthenticationMiddleware',  # <— doit être là
     'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    # … votre propre middleware ici …
 ]
 
 ROOT_URLCONF = 'myproject.urls'
@@ -40,14 +40,15 @@ TEMPLATES = [
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
-                'django.template.context_processors.debug',
-                'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages',
+                'django.template.context_processors.request',          # nécessaire pour l’admin et pour avoir request dans vos templates
+                'django.contrib.auth.context_processors.auth',         # nécessaire pour admin + {{ user }} dans vos templates
+                'django.contrib.messages.context_processors.messages', # nécessaire pour admin + le framework de messages
+                # … conservez ici les autres que vous aviez déjà, par ex. debug, i18n, static, etc.
             ],
         },
     },
 ]
+
 
 WSGI_APPLICATION = 'myproject.wsgi.application'
 
@@ -74,3 +75,8 @@ STATIC_URL = '/static/'
 STATIC_ROOT = [BASE_DIR / 'static']
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+LOGIN_URL = '/accounts/login/'
+LOGIN_REDIRECT_URL = '/facturation/'  # ou l’URL vers laquelle l’utilisateur authentifié doit être envoyé
+LOGOUT_REDIRECT_URL = 'login'
+

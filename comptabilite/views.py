@@ -12,6 +12,12 @@ from django.utils import timezone
 import pdfkit
 from django.conf import settings
 
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.mixins import LoginRequiredMixin
+
+from datetime import timedelta
+import calendar
+
 # Vue de recherche
 class FacturationSearchListView(ListView):
     model = Facturation
@@ -19,24 +25,45 @@ class FacturationSearchListView(ListView):
     context_object_name = 'facturations'
 
     def get_queryset(self):
-        queryset = super().get_queryset()
-        query = self.request.GET.get('q')
-        if query:
-            queryset = queryset.filter(
-                Q(dn__icontains=query) |
-                Q(nom__icontains=query) |
-                Q(prenom__icontains=query) |
-                Q(numero_facture__icontains=query) |
-                Q(date_acte__icontains=query)
-            )
-        return queryset
+        qs = super().get_queryset()
+        today = timezone.localdate()
+
+        # Filtre jour
+        if self.request.GET.get('today'):
+            qs = qs.filter(date_acte=today)
+
+        # Filtre semaine (lundi→dimanche)
+        if self.request.GET.get('week'):
+            # weekday(): lundi=0…dimanche=6
+            start_of_week = today - timedelta(days=today.weekday())
+            end_of_week   = start_of_week + timedelta(days=6)
+            qs = qs.filter(date_acte__gte=start_of_week, date_acte__lte=end_of_week)
+
+        # Filtre mois
+        if self.request.GET.get('month'):
+            first_of_month = today.replace(day=1)
+            last_day       = calendar.monthrange(today.year, today.month)[1]
+            last_of_month  = today.replace(day=last_day)
+            qs = qs.filter(date_acte__gte=first_of_month, date_acte__lte=last_of_month)
+
+        return qs
 
 # Vue pour la liste des facturations
-class FacturationListView(ListView):
+class FacturationListView(LoginRequiredMixin, ListView):
+    login_url = 'login'
+    redirect_field_name = 'next'   # paramètre renvoyé après login
     model = Facturation
     template_name = 'comptabilite/facturation_list.html'
     context_object_name = 'facturations'
 
+    def get_queryset(self):
+        qs = super().get_queryset()
+        # Si on a coché la case “today” dans le GET, on ne garde que les factures du jour
+        if self.request.GET.get('today'):
+            today = timezone.localdate()
+            qs = qs.filter(date_acte=today)
+        return qs
+    
 # Vue de création avec le formulaire personnalisé
 import json
 from django.views.generic import CreateView
@@ -115,12 +142,17 @@ def check_acte(request):
     return JsonResponse({'exists': False})
 
 
+from django.shortcuts import get_object_or_404
+from django.utils import timezone
+
 def print_facture(request, pk):
-    facture = Facturation.objects.get(pk=pk)
+    facture = get_object_or_404(Facturation, pk=pk)
     response = HttpResponse(content_type='application/pdf')
     response['Content-Disposition'] = 'attachment; filename="facture_{}.pdf"'.format(facture.numero_facture or facture.pk)
     c = canvas.Canvas(response, pagesize=A4)
     largeur, hauteur = A4
+
+
 
     # Récupération des données
     nom = facture.nom
@@ -138,7 +170,7 @@ def print_facture(request, pk):
         variable_1 = code_obj.variable_1 or ""
         modificateur = code_obj.modificateur or ""
         variable_2 = code_obj.variable_2 or ""
-        ps = "oui" if code_obj.parcours_soin else "non"
+        ps = "X" if code_obj.parcours_soin else ""
     else:
         code_acte_normal = ""
         variable_1 = ""
@@ -157,27 +189,34 @@ def print_facture(request, pk):
 
     regime_lm = ""
     if hasattr(facture, 'regime_lm'):
-        regime_lm = "oui" if facture.regime_lm else "non"
+        regime_lm = "X" if facture.regime_lm else ""
+    
+    # Si hors parcours de soins ET pas encore de numéro, on le génère et on enregistre
+    if not facture.code_acte.parcours_soin and not facture.numero_facture:
+        now = timezone.localtime()
+        facture.numero_facture = now.strftime("FQ/%Y/%m/%d/%H:%M")
+        facture.save()
 
-    c.drawString(2.0 * cm, hauteur - 3.7 * cm, f"{nom}")
-    c.drawString(12.5 * cm, hauteur - 3.7 * cm, f"{prenom}")
-    c.drawString(16.0 * cm, hauteur - 4.7 * cm, f"{date_naissance}")
-    c.drawString(2.0 * cm, hauteur - 4.7 * cm, f"{dn}")
+    c.drawString(2.0 * cm, hauteur - 4.3 * cm, f"{nom}")
+    c.drawString(12.5 * cm, hauteur - 4.3 * cm, f"{prenom}")
+    c.drawString(16.0 * cm, hauteur - 5.2 * cm, f"{date_naissance}")
+    c.drawString(2.0 * cm, hauteur - 5.2 * cm, f"{dn}")
     c.drawString(2.0 * cm, hauteur - 13.0 * cm, f"{nom_medecin}")
     c.drawString(2.0 * cm, hauteur - 13.5 * cm, f"{nom_clinique}")
-    c.drawString(10.5 * cm, hauteur - 12.6 * cm, f"{code_m}")
-    c.drawString(2.5 * cm, hauteur - 14.8 * cm, f"{ps}")
-    c.drawString(0.3 * cm, hauteur - 16.5 * cm, f"{regime_lm}")
-    c.drawString(0.5 * cm, hauteur - 20.3 * cm, f"{date_facture}")
-    c.drawString(4.0 * cm, hauteur - 20.3 * cm, f"{code_acte_normal}")
-    c.drawString(7.0 * cm, hauteur - 20.3 * cm, f"{variable_1}")
-    c.drawString(7.5 * cm, hauteur - 20.3 * cm, f"{modificateur}")
-    c.drawString(11.5 * cm, hauteur - 20.3 * cm, f"{variable_2}")
-    c.drawString(12.5 * cm, hauteur - 20.3 * cm, f"{total_acte}")
-    c.drawString(10.0 * cm, hauteur - 24.3 * cm, f"{total_acte}")
+    c.drawString(10.0 * cm, hauteur - 12.8 * cm, f"{code_m}")
+    c.drawString(2.8 * cm, hauteur - 14.9 * cm, f"{ps}")
     if facture.regime_lm:
-        c.drawString(7.5 * cm, hauteur - 27.6 * cm, f"{total_paye}")
-        c.drawString(11.5 * cm, hauteur - 27.6 * cm, f"{tiers_payant}")
+        c.drawString(0.6 * cm, hauteur - 16.7 * cm, f"{regime_lm}")
+    c.drawString(0.6 * cm, hauteur - 20.3 * cm, f"{date_facture}")
+    c.drawString(4.0 * cm, hauteur - 20.3 * cm, f"{code_acte_normal}")
+    c.drawString(7.2 * cm, hauteur - 20.3 * cm, f"{variable_1}")
+    c.drawString(7.5 * cm, hauteur - 20.3 * cm, f"{modificateur}")
+    c.drawString(11.4 * cm, hauteur - 20.3 * cm, f"{variable_2}")
+    c.drawString(12.5 * cm, hauteur - 20.3 * cm, f"{total_acte}")
+    c.drawString(10.0 * cm, hauteur - 23.9 * cm, f"{total_acte}")
+    if facture.regime_lm:
+        c.drawString(7.5 * cm, hauteur - 27.5 * cm, f"{total_paye}")
+        c.drawString(11.5 * cm, hauteur - 27.5 * cm, f"{tiers_payant}")
 
     c.save()
     return response
@@ -646,5 +685,125 @@ def generate_numero(request, pk):
         )
         facture.save(update_fields=['numero_facture'])
     return JsonResponse({'numero_facture': facture.numero_facture or ""})
+
+# views.py
+
+from django.views.generic import ListView
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.db.models import Count, Sum
+from django.utils import timezone
+from datetime import timedelta
+from .models import Facturation
+
+class ComptabiliteSummaryView(LoginRequiredMixin, ListView):
+    model = Facturation
+    template_name = 'comptabilite/comptabilite_summary.html'
+    context_object_name = 'summary_rows'
+    login_url = 'login'
+    redirect_field_name = 'next'
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        period = self.request.GET.get('period', '')
+        today = timezone.localdate()
+
+        if period == 'today':
+            qs = qs.filter(date_facture=today)
+        elif period == 'week':
+            start = today - timedelta(days=today.weekday())
+            end = start + timedelta(days=6)
+            qs = qs.filter(date_facture__range=(start, end))
+        elif period == 'month':
+            qs = qs.filter(date_facture__year=today.year, date_facture__month=today.month)
+        elif period == 'year':
+            qs = qs.filter(date_facture__year=today.year)
+
+        return qs
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        qs = self.get_queryset()
+
+        # paramètres de la vue
+        ctx['period_choices'] = [
+            ('', 'Toutes'),
+            ('today', "Aujourd'hui"),
+            ('week', 'Cette semaine'),
+            ('month', 'Ce mois'),
+            ('year', "Cette année"),
+        ]
+        ctx['period'] = self.request.GET.get('period', '')
+
+        # lire si chaque case est cochée
+        ctx['group_regime']      = bool(self.request.GET.get('group_regime'))
+        ctx['group_modalite']    = bool(self.request.GET.get('group_modalite'))
+        ctx['group_code_reel']   = bool(self.request.GET.get('group_code_reel'))
+
+        # pivot par régime
+        if ctx['group_regime']:
+            rows = qs.values('regime') \
+                     .annotate(count=Count('id'),
+                               total_acte=Sum('total_acte'),
+                               total_paye=Sum('total_paye'))
+        else:
+            rows = []
+        ctx['pivot_regime'] = rows
+        ctx['totals_regime'] = {
+            'count': sum(r['count'] for r in rows),
+            'total_acte': sum(r['total_acte'] or 0 for r in rows),
+            'total_paye': sum(r['total_paye'] or 0 for r in rows),
+        }
+
+        # pivot par modalité
+        if ctx['group_modalite']:
+            tmp = (qs.select_related('paiement')
+                     .values('paiement__modalite_paiement')
+                     .annotate(count=Count('id'),
+                               total_acte=Sum('total_acte'),
+                               total_paye=Sum('total_paye'))
+                     .order_by('paiement__modalite_paiement'))
+            rows = [
+                {'label': r['paiement__modalite_paiement'], **r}
+                for r in tmp
+            ]
+        else:
+            rows = []
+        ctx['pivot_modalite'] = rows
+        ctx['totals_modalite'] = {
+            'count': sum(r['count'] for r in rows),
+            'total_acte': sum(r['total_acte'] or 0 for r in rows),
+            'total_paye': sum(r['total_paye'] or 0 for r in rows),
+        }
+
+        # pivot par code réel
+        if ctx['group_code_reel']:
+            tmp = (qs.select_related('code_acte')
+                     .values('code_acte__code_reel')
+                     .annotate(count=Count('id'),
+                               total_acte=Sum('total_acte'),
+                               total_paye=Sum('total_paye'))
+                     .order_by('code_acte__code_reel'))
+            rows = [
+                {'code_reel': r['code_acte__code_reel'], **r}
+                for r in tmp
+            ]
+        else:
+            rows = []
+        ctx['pivot_code_reel'] = rows
+        ctx['totals_code_reel'] = {
+            'count': sum(r['count'] for r in rows),
+            'total_acte': sum(r['total_acte'] or 0 for r in rows),
+            'total_paye': sum(r['total_paye'] or 0 for r in rows),
+        }
+
+        return ctx
+
+
+
+
+
+
+
+
 
 

@@ -1,6 +1,6 @@
 from django.urls import path
 from . import views
-from .views import remise_cheque
+from .views import remise_cheque, ComptabiliteSummaryView, FacturationListView, FacturationCreateView
 
 urlpatterns = [
     path('', views.FacturationListView.as_view(), name='facturation_list'),
@@ -20,5 +20,6 @@ urlpatterns = [
     path('remise-cheque/', remise_cheque, name='remise_cheque'),
     path('cheques/pdf/', views.print_cheque_listing, name='print_cheque_listing'),
     path('<int:pk>/generate_numero/', views.generate_numero, name='generate_numero'),
+    path('comptabilite/', ComptabiliteSummaryView.as_view(), name='comptabilite_summary'),
 ]
 

@@ -2,6 +2,9 @@
 {% block content %}
 <div class="table-responsive">
   <h1>{% if object %}Modifier{% else %}Créer{% endif %} une Facturation</h1>
+  <div id="lm-alert" class="alert alert-danger" style="display:none;">
+    Brigitte, c’est une longue maladie : pour la préparation du bordereau, tu dois saisir le numéro de facture.
+  </div>  
   <form method="post">
     {% csrf_token %}
     <table class="table">
@@ -100,5 +103,34 @@ $(document).ready(function(){
   });
 });
 </script>
+<script>
+  var codesData = {{ codes_data|safe }};
+  $(function(){
+    $('#id_code_acte').on('change', function(){
+      var code = $(this).val(),
+          data = codesData[code] || {};
 
+      // Montants
+      $('#id_total_acte').val(data.total_acte || '');
+      $('#id_tiers_payant').val(data.tiers_payant || '');
+      $('#id_total_paye').val(data.total_paye || '');
+    });
+  });
+</script>
+<script>
+  $(function(){
+    // … vos autres scripts …
+  
+    // 1. fonction pour afficher/cacher l’alerte et rendre le champ obligatoire
+    function toggleLmAlert(){
+      var lm = $('#id_regime_lm').is(':checked');
+      $('#lm-alert').toggle(lm);                    // montre ou cache l’alerte
+      $('#id_numero_facture').prop('required', lm); // rend obligatoire ou non
+    }
+  
+    // 2. au chargement et à chaque changement de regime_lm
+    toggleLmAlert();
+    $('#id_regime_lm').on('change', toggleLmAlert);
+  });
+  </script>
 {% endblock %}

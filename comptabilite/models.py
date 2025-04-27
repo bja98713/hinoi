@@ -98,10 +98,10 @@ class Facturation(models.Model):
     )
 
     REGIME_CHOICES = [
-        ('ss', 'Sécurité Sociale'),
-        ('rns', 'RNS'),
-        ('salarie', 'Salarié'),
-        ('rst', 'RST'),
+        ('Sécurité Sociale', 'Sécurité Sociale'),
+        ('RNS', 'RNS'),
+        ('Salarié', 'Salarié'),
+        ('RST', 'RST'),
     ]
     regime = models.CharField(
         max_length=20,
@@ -119,15 +119,15 @@ class Facturation(models.Model):
         verbose_name="Régime LM (oui/non)"
     )
 
-    LIEU_CHOICES = [
-        ('cabinet', 'Cabinet'),
-        ('clinique', 'Clinique')
-    ]
-    lieu_acte = models.CharField(
-        max_length=50,
-        choices=LIEU_CHOICES,
-        verbose_name="Lieu de l'acte"
-    )
+    #LIEU_CHOICES = [
+        #('cabinet', 'Cabinet'),
+        #('clinique', 'Clinique')
+    #]
+    #lieu_acte = models.CharField(
+        #max_length=50,
+        #choices=LIEU_CHOICES,
+        #verbose_name="Lieu de l'acte"
+    #)
 
     code_acte = models.ForeignKey(
         Code,
