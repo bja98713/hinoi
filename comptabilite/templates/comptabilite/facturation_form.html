@@ -1,11 +1,10 @@
 {% extends 'base.html' %}
+
 {% block content %}
 <div class="table-responsive">
   <h1>{% if object %}Modifier{% else %}Créer{% endif %} une Facturation</h1>
-  <div id="lm-alert" class="alert alert-danger" style="display:none;">
-    Brigitte, c’est une longue maladie : pour la préparation du bordereau, tu dois saisir le numéro de facture.
-  </div>  
-  <form method="post">
+
+  <form method="post" id="facturation-form">
     {% csrf_token %}
     <table class="table">
       <tbody>
@@ -25,112 +24,100 @@
         {% endfor %}
       </tbody>
     </table>
+
     <button type="submit" class="btn btn-primary">Enregistrer</button>
     <a href="{% url 'facturation_list' %}" class="btn btn-secondary">Annuler</a>
   </form>
 </div>
 
-<!-- Inclure jQuery une seule fois -->
+<!-- jQuery -->
 <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+
 <script>
-$(document).ready(function(){
+// --- 1) Données des codes injectées par la vue ---
+var codesData = {{ codes_data|safe }};
 
-  // 1. Auto-remplissage pour le champ code d'acte
-  $('#id_code_acte').on('change', function(){
-       var option = $(this).find('option:selected');
-       var total_acte = option.data('total_acte');
-       var tiers_payant = option.data('tiers_payant');
-       var total_paye = option.data('total_paye');
-       $('#id_total_acte').val(total_acte);
-       $('#id_tiers_payant').val(tiers_payant);
-       $('#id_total_paye').val(total_paye);
-  });
-
-  // 2. Auto-remplissage pour le champ DN
-  $('#id_dn').on('change', function(){
-       var dnValue = $(this).val();
-       if(dnValue){
-           $.ajax({
-               url: "{% url 'check_dn' %}",
-               data: {'dn': dnValue},
-               dataType: 'json',
-               success: function(response) {
-                   if(response.exists){
-                       // Remplir automatiquement les champs avec les données du patient
-                       $('#id_dn').val(response.patient.dn);
-                       $('#id_nom').val(response.patient.nom);
-                       $('#id_prenom').val(response.patient.prenom);
-                       $('#id_date_naissance').val(response.patient.date_naissance);
-                   }
-               },
-               error: function(xhr, status, error) {
-                   console.error("Erreur AJAX (DN):", status, error);
-               }
-           });
-       }
-  });
-
-  // 3. Confirmation avant soumission selon droit ouvert et régime LM
-  $("form").on('submit', function(e){
-      if ($("#id_droit_ouvert").is(":checked")){
-          if (!confirm("Brigitte, es-tu sûre que les droits sont ouverts ?")){
-              e.preventDefault();
-              return false;
-          }
-      }
-      if ($("#id_regime_lm").is(":checked")){
-          if (!confirm("Brigitte, es-tu sûre que le malade a un carnet rouge en cours de validité ?")){
-              e.preventDefault();
-              return false;
-          }
-      }
-      return true;
-  });
-
-  // 4. Affichage conditionnel des champs Banque et Porteur si modalite_paiement = "Chèque"
-  function toggleChequeFields() {
-    if ($('#id_modalite_paiement').val() === 'Chèque') {
-      $('#div_banque').show();
-      $('#div_porteur').show();
-    } else {
-      $('#div_banque').hide();
-      $('#div_porteur').hide();
+$(function(){
+  // --- 2) Au chargement : attacher les datas aux options ---
+  $('#id_code_acte option').each(function(){
+    var code = this.value;
+    if(codesData[code]){
+      $(this)
+        .data('total_acte',   codesData[code].total_acte)
+        .data('tiers_payant', codesData[code].tiers_payant)
+        .data('total_paye',   codesData[code].total_paye);
     }
-  }
-  toggleChequeFields(); // au chargement
-  $('#id_modalite_paiement').on('change', function(){
-      toggleChequeFields();
   });
+
+  // --- 3) Sur changement de code_acte : remplir les champs ---
+  $('#id_code_acte').on('change', function(){
+    var sel    = $(this).find('option:selected'),
+        acte   = sel.data('total_acte')   || '',
+        tiers  = sel.data('tiers_payant') || '',
+        paye   = sel.data('total_paye')   || '';
+    $('#id_total_acte').val(acte);
+    $('#id_tiers_payant').val(tiers);
+    $('#id_total_paye').val(paye);
+  });
+
+  // --- 4) Auto-remplissage DN / patient ---
+  $('#id_dn').on('change', function(){
+    var dn = $(this).val();
+    if(!dn) return;
+    $.get("{% url 'check_dn' %}", { dn: dn }, function(resp){
+      if(resp.exists){
+        $('#id_nom').val(resp.patient.nom);
+        $('#id_prenom').val(resp.patient.prenom);
+        $('#id_date_naissance').val(resp.patient.date_naissance);
+      }
+    }, 'json');
+  });
+
+  // --- 5) Alertes LM et TP ---
+  function toggleLmAlert(){
+    var lm = $('#id_regime_lm').is(':checked');
+    $('#lm-alert').toggle(lm);
+    $('#id_numero_facture').prop('required', lm);
+  }
+  function toggleTpAlert(){
+    var tp = $('#id_regime_tp').is(':checked');
+    $('#tp-alert').toggle(tp);
+    $('#id_numero_facture').prop('required', tp);
+  }
+  toggleLmAlert(); toggleTpAlert();
+  $('#id_regime_lm').on('change', toggleLmAlert);
+  $('#id_regime_tp').on('change', toggleTpAlert);
+
+  // --- 6) Confirmation droits ouverts ---
+  $('#facturation-form').on('submit', function(e){
+    if($('#id_droit_ouvert').is(':checked')){
+      if(!confirm("Brigitte, es-tu sûre que les droits sont ouverts ?")){
+        e.preventDefault(); return false;
+      }
+    }
+    return true;
+  });
+
+  // --- 7) Affichage champs chèque ---
+  function toggleCheque(){
+    var ch = $('#id_modalite_paiement').val()==='Chèque';
+    $('#div_banque, #div_porteur').toggle(ch);
+  }
+  toggleCheque();
+  $('#id_modalite_paiement').on('change', toggleCheque);
 });
 </script>
-<script>
-  var codesData = {{ codes_data|safe }};
-  $(function(){
-    $('#id_code_acte').on('change', function(){
-      var code = $(this).val(),
-          data = codesData[code] || {};
 
-      // Montants
-      $('#id_total_acte').val(data.total_acte || '');
-      $('#id_tiers_payant').val(data.tiers_payant || '');
-      $('#id_total_paye').val(data.total_paye || '');
-    });
-  });
-</script>
-<script>
-  $(function(){
-    // … vos autres scripts …
-  
-    // 1. fonction pour afficher/cacher l’alerte et rendre le champ obligatoire
-    function toggleLmAlert(){
-      var lm = $('#id_regime_lm').is(':checked');
-      $('#lm-alert').toggle(lm);                    // montre ou cache l’alerte
-      $('#id_numero_facture').prop('required', lm); // rend obligatoire ou non
-    }
-  
-    // 2. au chargement et à chaque changement de regime_lm
-    toggleLmAlert();
-    $('#id_regime_lm').on('change', toggleLmAlert);
-  });
-  </script>
+{# Alertes placées en haut du form #}
+<style>
+  #lm-alert, #tp-alert {
+    display: none;
+  }
+</style>
+<div id="lm-alert" class="alert alert-danger">
+  Brigitte, c’est une longue maladie : pour la préparation du bordereau, tu dois saisir le numéro de facture.
+</div>
+<div id="tp-alert" class="alert alert-danger">
+  Brigitte, c’est un tiers payant : pour la préparation du bordereau, tu dois saisir le numéro de facture.
+</div>
 {% endblock %}
