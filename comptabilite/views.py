@@ -627,11 +627,7 @@ def print_cheque_listing(request):
     c.drawString(2*cm, y, f"Date de remise : {filter_date.strftime('%d/%m/%Y')}")
     y -= 1*cm
 
-<<<<<<< HEAD
     y = height - 6*cm
-=======
-    y = height - 2*cm
->>>>>>> 56cc5cf (Modifs locales avant pull)
     c.setFont('Helvetica-Bold', 16)
     c.drawString(2*cm, y, f"Remise de {count} chèque(s)")
     y -= 1*cm
