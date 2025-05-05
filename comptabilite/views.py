@@ -63,7 +63,7 @@ class FacturationListView(LoginRequiredMixin, ListView):
             today = timezone.localdate()
             qs = qs.filter(date_acte=today)
         return qs
-    
+
 # Vue de création avec le formulaire personnalisé
 import json
 from django.views.generic import CreateView
@@ -190,7 +190,7 @@ def print_facture(request, pk):
     regime_lm = ""
     if hasattr(facture, 'regime_lm'):
         regime_lm = "X" if facture.regime_lm else ""
-    
+
     # Si hors parcours de soins ET pas encore de numéro, on le génère et on enregistre
     if not facture.code_acte.parcours_soin and not facture.numero_facture:
         now = timezone.localtime()
@@ -238,12 +238,12 @@ def create_bordereau(request):
     factures = Facturation.objects.filter(tiers_payant__gt=0).filter(
         Q(numero_bordereau__isnull=True) | Q(numero_bordereau="")
     )
-    
+
     if not factures.exists():
         return render(request, 'comptabilite/bordereau.html', {
             'error': "Aucune facture à traiter pour le bordereau."
         })
-    
+
     # Génération du numéro de bordereau
     today = date.today()
     year = today.year
@@ -251,17 +251,17 @@ def create_bordereau(request):
     week = today.isocalendar()[1]
     day_of_year = today.timetuple().tm_yday
     num_bordereau = f"M-{year}-{month:02d}-{week:02d}-{day_of_year:03d}"
-    
+
     # Mettre à jour chaque facture avec le numéro et la date du bordereau
     for facture in factures:
         facture.numero_bordereau = num_bordereau
         facture.date_bordereau = today
         facture.save()
-    
+
     # Calculer le nombre de factures et la somme totale du tiers_payant
     count = factures.count()
     total_tiers_payant = sum(facture.tiers_payant for facture in factures)
-    
+
     context = {
         'factures': factures,
         'num_bordereau': num_bordereau,
@@ -287,7 +287,7 @@ def print_bordereau(request, num_bordereau):
     factures = Facturation.objects.filter(numero_bordereau=num_bordereau)
     if not factures.exists():
         return HttpResponse("Aucune facture trouvée pour ce bordereau.", status=404)
-    
+
     # Extraire les infos
     count = factures.count()
     total_tiers_payant = sum(f.tiers_payant for f in factures)
@@ -336,7 +336,7 @@ class ActivityListView(ListView):
     model = Facturation
     template_name = 'comptabilite/activity_list.html'
     context_object_name = 'factures'
-    
+
     def get_queryset(self):
         queryset = super().get_queryset()
         # Récupérer les paramètres de filtre
@@ -344,7 +344,7 @@ class ActivityListView(ListView):
         start_date_str = self.request.GET.get('start_date')  # format ISO ou européen
         end_date_str = self.request.GET.get('end_date')
         year_str = self.request.GET.get('year')            # par exemple: '2025'
-        
+
         if date_str:
             # Tenter de parser en format ISO, sinon format européen
             try:
@@ -382,10 +382,10 @@ class ActivityListView(ListView):
                 queryset = queryset.filter(date_facture__year=year)
             except ValueError:
                 pass
-        
+
         # Vous pouvez ajouter d'autres filtres si nécessaire.
         return queryset.order_by('date_facture')
-    
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         # Récupérer les filtres pour les réafficher (optionnel)
@@ -406,18 +406,16 @@ class ActivityListView(ListView):
 
 # comptabilite/views.py
 
-from django.shortcuts import render, redirect
-from datetime import datetime, date
-from django.db.models import Sum
-from .models import Paiement
+# views.py
 
+from decimal import Decimal
 from django.shortcuts import render, redirect
-from datetime import date
 from django.db.models import Sum
+from datetime import date
 from .models import Paiement
 
 def cheque_listing(request):
-    # POST : on coche tous les chèques non listés dont la date ≤ aujourd'hui
+    # 1) On coche tous les chèques non listés dont la date ≤ aujourd'hui (POST)
     if request.method == 'POST':
         Paiement.objects.filter(
             modalite_paiement="Chèque",
@@ -426,14 +424,14 @@ def cheque_listing(request):
         ).update(liste=True)
         return redirect('cheque_listing')
 
-    # GET : on n'affiche que ceux qui ne sont pas encore listés
+    # 2) En GET, on récupère les chèques non encore listés
     cheques = Paiement.objects.filter(
         modalite_paiement="Chèque",
         date__lte=date.today(),
         liste=False
     )
     count = cheques.count()
-    total_montant = cheques.aggregate(total=Sum('montant'))['total'] or 0
+    total_montant = cheques.aggregate(total=Sum('montant'))['total'] or Decimal('0')
 
     return render(request, 'comptabilite/cheque_listing.html', {
         'cheques': cheques,
@@ -441,6 +439,7 @@ def cheque_listing(request):
         'total_montant': total_montant,
         'filter_date': date.today().strftime("%d/%m/%Y"),
     })
+
 
 
 
@@ -563,6 +562,7 @@ def print_cheque_listing(request):
     from datetime import datetime, date
     import io
     from django.db.models import Sum
+    from django.shortcuts import redirect
     from django.http import HttpResponse
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.units import cm
@@ -589,14 +589,14 @@ def print_cheque_listing(request):
         liste=False
     ).order_by('date')
 
-    # 3. On cashe en mémoire AVANT le .update()
+    # 3. On met en mémoire AVANT le .update()
     cheques = list(qs)
     if not cheques:
-        # rien à lister → retour à la liste
         return redirect('cheque_listing')
 
     count = len(cheques)
-    total_montant = sum(ch.montant for ch in cheques)
+    # --- Ici on remplace sum(ch.montant) par sum(ch.montant or 0) ---
+    total_montant = sum((ch.montant or 0) for ch in cheques)
 
     # 4. On marque TOUTES ces lignes comme « listées »
     qs.update(liste=True)
@@ -608,23 +608,31 @@ def print_cheque_listing(request):
 
     y = height - 2*cm
     c.setFont('Helvetica-Bold', 16)
-    c.drawString(2*cm, y, "Dr. Florence FOURQUET | Dermatologie | Av. du Prince HINOI | Papeete")
+    c.drawString(2*cm, y, "Dr. Florence FOURQUET | Dermatologie")
     y -= 1*cm
 
-    y = height - 2*cm
+    y = height - 3*cm
     c.setFont('Helvetica-Bold', 16)
     c.drawString(2*cm, y, "Av. du Prince HINOI | Papeete")
     y -= 1*cm
 
+    y = height - 4*cm
     c.setFont('Helvetica-Bold', 16)
     c.drawString(2*cm, y, f"Remise de {count} Chèqu(es)")
     y -= 1*cm
 
+
+    y = height - 5*cm
     c.setFont('Helvetica', 12)
     c.drawString(2*cm, y, f"Date de remise : {filter_date.strftime('%d/%m/%Y')}")
     y -= 1*cm
 
-    # En‑tête du tableau
+    y = height - 6*cm
+    c.setFont('Helvetica-Bold', 16)
+    c.drawString(2*cm, y, f"Remise de {count} chèque(s)")
+    y -= 1*cm
+
+    # En-tête du tableau
     c.setFont('Helvetica-Bold', 12)
     xs = [2*cm, 6*cm, 10*cm, 14*cm]
     for x, title in zip(xs, ["Date", "Banque", "Porteur", "Montant"]):
@@ -637,23 +645,25 @@ def print_cheque_listing(request):
         if y < 2*cm:
             c.showPage()
             y = height - 2*cm
-            # on ré‑affiche l’en‑tête
             c.setFont('Helvetica-Bold', 12)
             for x, title in zip(xs, ["Date", "Banque", "Porteur", "Montant"]):
                 c.drawString(x, y, title)
             y -= 0.7*cm
             c.setFont('Helvetica', 11)
 
-        c.drawString(xs[0], y, ch.date.strftime('%d/%m/%Y'))
+        date_str = ch.date.strftime('%d/%m/%Y')
+        montant = int(ch.montant or 0)
+        c.drawString(xs[0], y, date_str)
         c.drawString(xs[1], y, ch.banque or "")
         c.drawString(xs[2], y, ch.porteur or "")
-        c.drawRightString(xs[3] + 3*cm, y, f"{int(ch.montant)}")
+        c.drawRightString(xs[3] + 3*cm, y, f"{montant}")
         y -= 0.7*cm
 
     # Total en bas
     y -= 1*cm
     c.setFont('Helvetica-Bold', 12)
-    c.drawString(2*cm, y, f"Nombre de chèque(s) : {count}   Total des montants : {int(total_montant)}")
+    c.drawString(2*cm, y, f"Nombre de chèque(s) : {count}")
+    c.drawRightString(xs[3] + 3*cm, y, f"{int(total_montant)}")
 
     c.save()
     buffer.seek(0)
@@ -663,6 +673,7 @@ def print_cheque_listing(request):
     response = HttpResponse(buffer, content_type='application/pdf')
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
     return response
+
 
 from django.shortcuts import get_object_or_404
 from django.http import JsonResponse

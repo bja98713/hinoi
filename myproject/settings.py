@@ -9,7 +9,7 @@ SECRET_KEY = 'changez-moi-avec-une-clé-secrète-unique'
 
 DEBUG = True  # En production, mettez False
 
-ALLOWED_HOSTS = []  # En production, mettez votre nom de domaine ou IP
+ALLOWED_HOSTS = ['flotahiti.pythonanywhere.com']  # En production, mettez votre nom de domaine ou IP
 
 # Application 'comptabilite' + apps par défaut
 INSTALLED_APPS = [
@@ -62,7 +62,7 @@ DATABASES = {
 
 # Configuration pour l’internationalisation (langue, fuseau horaire)
 LANGUAGE_CODE = 'fr-fr'
-TIME_ZONE = 'Europe/Paris'
+TIME_ZONE = 'Pacific/Tahiti'
 USE_I18N = True
 USE_L10N = True
 USE_TZ = True
