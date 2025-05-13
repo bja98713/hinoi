@@ -224,26 +224,26 @@ def print_facture(request, pk):
         facture.numero_facture = now.strftime("FQ/%Y/%m/%d/%H:%M")
         facture.save()
 
-    c.drawString(2.0 * cm, hauteur - 3.7 * cm, f"{nom}")
-    c.drawString(12.5 * cm, hauteur - 3.7 * cm, f"{prenom}")
-    c.drawString(16.0 * cm, hauteur - 4.7 * cm, f"{date_naissance}")
-    c.drawString(2.0 * cm, hauteur - 4.7 * cm, f"{dn}")
+    c.drawString(2.0 * cm, hauteur - 4.3 * cm, f"{nom}")
+    c.drawString(12.5 * cm, hauteur - 4.3 * cm, f"{prenom}")
+    c.drawString(16.0 * cm, hauteur - 5.2 * cm, f"{date_naissance}")
+    c.drawString(2.0 * cm, hauteur - 5.2 * cm, f"{dn}")
     c.drawString(2.0 * cm, hauteur - 13.0 * cm, f"{nom_medecin}")
     c.drawString(2.0 * cm, hauteur - 13.5 * cm, f"{nom_clinique}")
-    c.drawString(10.5 * cm, hauteur - 12.6 * cm, f"{code_m}")
-    c.drawString(2.5 * cm, hauteur - 14.8 * cm, f"{ps}")
+    c.drawString(10.0 * cm, hauteur - 12.8 * cm, f"{code_m}")
+    c.drawString(2.8 * cm, hauteur - 14.9 * cm, f"{ps}")
     if facture.regime_lm:
-        c.drawString(0.3 * cm, hauteur - 16.5 * cm, f"{regime_lm}")
-    c.drawString(0.5 * cm, hauteur - 20.3 * cm, f"{date_facture}")
+        c.drawString(0.6 * cm, hauteur - 16.7 * cm, f"{regime_lm}")
+    c.drawString(0.6 * cm, hauteur - 20.3 * cm, f"{date_facture}")
     c.drawString(4.0 * cm, hauteur - 20.3 * cm, f"{code_acte_normal}")
-    c.drawString(7.0 * cm, hauteur - 20.3 * cm, f"{variable_1}")
+    c.drawString(7.2 * cm, hauteur - 20.3 * cm, f"{variable_1}")
     c.drawString(7.5 * cm, hauteur - 20.3 * cm, f"{modificateur}")
-    c.drawString(11.5 * cm, hauteur - 20.3 * cm, f"{variable_2}")
+    c.drawString(11.4 * cm, hauteur - 20.3 * cm, f"{variable_2}")
     c.drawString(12.5 * cm, hauteur - 20.3 * cm, f"{total_acte}")
-    c.drawString(10.0 * cm, hauteur - 24.3 * cm, f"{total_acte}")
-    if facture.regime_lm or facture.tiers_payant and facture.tiers_payant != Decimal('0'):
-        c.drawString(7.5 * cm, hauteur - 27.6 * cm, f"{total_paye}")
-        c.drawString(11.5 * cm, hauteur - 27.6 * cm, f"{tiers_payant}")
+    c.drawString(10.0 * cm, hauteur - 23.9 * cm, f"{total_acte}")
+    if facture.regime_lm:
+        c.drawString(7.5 * cm, hauteur - 27.5 * cm, f"{total_paye}")
+        c.drawString(11.5 * cm, hauteur - 27.5 * cm, f"{tiers_payant}")
 
     c.save()
     return response
@@ -632,12 +632,12 @@ def print_cheque_listing(request):
 
     y = height - 2*cm
     c.setFont('Helvetica-Bold', 16)
-    c.drawString(2*cm, y, "Dr. Florence FOURQUET | Dermatologue")
+    c.drawString(2*cm, y, "Dr. Florence FOURQUET| Dermatologue")
     y -= 1*cm
 
     y = height - 2*cm
     c.setFont('Helvetica-Bold', 16)
-    c.drawString(2*cm, y, "Rue Lagarde | Papeete")
+    c.drawString(2*cm, y, "Av. Prince Hinoï | Papeete")
     y -= 1*cm
 
     c.setFont('Helvetica-Bold', 16)
