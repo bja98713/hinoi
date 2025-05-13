@@ -9,7 +9,7 @@ SECRET_KEY = 'changez-moi-avec-une-clé-secrète-unique'
 
 DEBUG = True  # En production, mettez False
 
-ALLOWED_HOSTS = ['www.docteur-bronstein.com', '127.0.0.1']  # En production, mettez votre nom de domaine ou IP
+ALLOWED_HOSTS = ['flotahiti.pythonanywhere.com']  # En production, mettez votre nom de domaine ou IP
 
 
 # Application 'comptabilite' + apps par défaut

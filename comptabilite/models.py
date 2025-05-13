@@ -126,7 +126,7 @@ class Facturation(models.Model):
 
     LIEU_CHOICES = [
         ('Cabinet', 'Cabinet'),
-        ('Clinique', 'Clinique')
+        #('Clinique', 'Clinique')
     ]
     lieu_acte = models.CharField(
         max_length=50,

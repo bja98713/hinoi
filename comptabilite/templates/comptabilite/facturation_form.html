@@ -4,7 +4,7 @@
   <h1>{% if object %}Modifier{% else %}Créer{% endif %} une Facturation</h1>
   <div id="lm-alert" class="alert alert-danger" style="display:none;">
     Tania, c’est une longue maladie : pour la préparation du bordereau, tu dois saisir le numéro de facture.
-  </div>  
+  </div>
   <div id="tp-alert" class="alert alert-warning" style="display:none;">
     Tania, c'est un tiers payant : tu dois saisir le numéro de facture.
   </div>
@@ -82,7 +82,7 @@ $(document).ready(function(){
           }
       }
       if ($("#id_regime_lm").is(":checked")){
-          if (!confirm("Coucou Tania, es-tu sûre que le malade a un carnet rouge en cours de validité ?")){
+          if (!confirm("Coucou Brigitte, es-tu sûre que le malade a un carnet rouge en cours de validité ?")){
               e.preventDefault();
               return false;
           }
@@ -127,18 +127,18 @@ $(document).ready(function(){
       $('#lm-alert').toggle(lm);
       $('#id_numero_facture').prop('required', lm);
     }
-  
+
     // toggle alerte et required pour régime TP
     function toggleTpAlert(){
       var tp = $('#id_regime_tp').is(':checked');
       $('#tp-alert').toggle(tp);
       $('#id_numero_facture').prop('required', tp);
     }
-  
+
     // au chargement
     toggleLmAlert();
     toggleTpAlert();
-  
+
     // à chaque changement
     $('#id_regime_lm').on('change', toggleLmAlert);
     $('#id_regime_tp').on('change', toggleTpAlert);

@@ -75,7 +75,7 @@ class Command(BaseCommand):
         # 6) Envoyer l'email
         subject = f"Activité du {target_date:%d/%m/%Y}"
         from_email = settings.EMAIL_HOST_USER
-        to = ['bronstein.tahiti@proton.me', 'marie.bronstein@gmail.com']
+        to = ['flofourquet@gmail.com']
 
         msg = EmailMultiAlternatives(subject, "", from_email, to)
         msg.attach_alternative(html_content, "text/html")

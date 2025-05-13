@@ -632,7 +632,7 @@ def print_cheque_listing(request):
 
     y = height - 2*cm
     c.setFont('Helvetica-Bold', 16)
-    c.drawString(2*cm, y, "Dr. Jean-Ariel BRONSTEIN | Gastroentérologue")
+    c.drawString(2*cm, y, "Dr. Florence FOURQUET | Dermatologue")
     y -= 1*cm
 
     y = height - 2*cm
