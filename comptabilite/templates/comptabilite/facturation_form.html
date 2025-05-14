@@ -3,10 +3,10 @@
 <div class="table-responsive">
   <h1>{% if object %}Modifier{% else %}Créer{% endif %} une Facturation</h1>
   <div id="lm-alert" class="alert alert-danger" style="display:none;">
-    Tania, c’est une longue maladie : pour la préparation du bordereau, tu dois saisir le numéro de facture.
+    Brigitte, c’est une longue maladie : pour la préparation du bordereau, tu dois saisir le numéro de facture.
   </div>
   <div id="tp-alert" class="alert alert-warning" style="display:none;">
-    Tania, c'est un tiers payant : tu dois saisir le numéro de facture.
+    Brigitte, c'est un tiers payant : tu dois saisir le numéro de facture.
   </div>
   <form method="post">
     {% csrf_token %}
@@ -76,7 +76,7 @@ $(document).ready(function(){
   // 3. Confirmation avant soumission selon droit ouvert et régime LM
   $("form").on('submit', function(e){
       if ($("#id_droit_ouvert").is(":checked")){
-          if (!confirm("Coucou Tania, es-tu sûre que les droits sont ouverts ?")){
+          if (!confirm("Couccou Brigitte, es-tu sûre que les droits sont ouverts ?")){
               e.preventDefault();
               return false;
           }

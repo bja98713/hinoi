@@ -126,11 +126,11 @@ class Facturation(models.Model):
 
     LIEU_CHOICES = [
         ('Cabinet', 'Cabinet'),
-        #('Clinique', 'Clinique')
     ]
     lieu_acte = models.CharField(
         max_length=50,
         choices=LIEU_CHOICES,
+        default='Cabinet',
         verbose_name="Lieu de l'acte"
     )
 
@@ -182,6 +182,7 @@ class Facturation(models.Model):
     statut_dossier = models.CharField(
         max_length=20,
         choices=STATUT_CHOICES,
+        default='RAS',
         verbose_name="Statut du dossier"
     )
 
@@ -221,7 +222,7 @@ class Paiement(models.Model):
         blank=True
     )
     MODALITE_CHOICES = [
-        ('-----', '-----'),
+        #('-----', '-----'),
         ('CB', 'Carte Bancaire'),
         ('Chèque', 'Chèque'),
         ('Liquide', 'Liquide'),
