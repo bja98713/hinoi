@@ -288,7 +288,7 @@ class Paiement(models.Model):
         ('Banque de Tahiti', 'Banque de Tahiti'),
         ('Socredo', 'Socredo'),
         ('Banque de Polynésie', 'Banque de Polynésie'),
-        ('CC°', 'CCP'),
+        ('CCP', 'CCP'),
     ]
     banque = models.CharField(
         max_length=50,

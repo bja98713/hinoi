@@ -447,7 +447,6 @@ def cheque_listing(request):
 
 
 
-
 from datetime import date, datetime
 from django.shortcuts import render, redirect
 
@@ -677,7 +676,6 @@ def print_cheque_listing(request):
     response = HttpResponse(buffer, content_type='application/pdf')
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
     return response
-
 
 from django.shortcuts import get_object_or_404
 from django.http import JsonResponse

@@ -79,4 +79,3 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 LOGIN_URL = '/accounts/login/'
 LOGIN_REDIRECT_URL = '/facturation/'  # ou l’URL vers laquelle l’utilisateur authentifié doit être envoyé
 LOGOUT_REDIRECT_URL = 'login'
-
