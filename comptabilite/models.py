@@ -1,17 +1,34 @@
 from django.db import models
 
 class Medecin(models.Model):
-    nom_medecin = models.CharField(max_length=100, verbose_name="Nom du Médecin")
-    code_m = models.CharField(max_length=50, verbose_name="Code M")
-    nom_clinique = models.CharField(max_length=100, verbose_name="Nom de la Clinique")
+    nom_medecin = models.CharField(
+        max_length=100,
+        verbose_name="Nom du Médecin"
+    )
+    code_m = models.CharField(
+        max_length=50,
+        verbose_name="Code M"
+    )
+    nom_clinique = models.CharField(
+        max_length=100,
+        verbose_name="Nom de la Clinique"
+    )
 
     def __str__(self):
         return self.nom_medecin
 
 class Code(models.Model):
     # Champs existants avec modification de noms :
-    code_acte = models.CharField(max_length=50, unique=True, verbose_name="Code de l'acte")
-    total_acte = models.DecimalField(max_digits=10, decimal_places=0, verbose_name="Montant total de l'acte")
+    code_acte = models.CharField(
+        max_length=50,
+        unique=True,
+        verbose_name="Code de l'acte"
+    )
+    total_acte = models.DecimalField(
+        max_digits=10,
+        decimal_places=0,
+        verbose_name="Montant total de l'acte"
+    )
     tiers_payant = models.DecimalField(
         max_digits=10,
         decimal_places=0,
@@ -27,6 +44,28 @@ class Code(models.Model):
         verbose_name="Total payé"
     )
 
+    # Nouveaux champs
+    total_acte_1 = models.DecimalField(
+        max_digits=10,
+        decimal_places=0,
+        null=True,
+        blank=True,
+        verbose_name="Montant total de l'acte 1"
+    )
+    total_acte_2 = models.DecimalField(
+        max_digits=10,
+        decimal_places=0,
+        null=True,
+        blank=True,
+        verbose_name="Montant total de l'acte 2"
+    )
+    code_acte_normal_2 = models.CharField(
+        max_length=50,
+        null=True,
+        blank=True,
+        verbose_name="Code Acte Normal 2"
+    )
+
     medecin = models.ForeignKey(
         Medecin,
         on_delete=models.SET_NULL,
@@ -35,9 +74,20 @@ class Code(models.Model):
         verbose_name="Médecin"
     )
 
-    parcours_soin = models.BooleanField(default=False, verbose_name="Parcours de soins")
-    longue_maladie = models.BooleanField(default=False, verbose_name="Longue maladie")
-    code_reel = models.CharField(max_length=50, null=True, blank=True, verbose_name="Code réel")
+    parcours_soin = models.BooleanField(
+        default=False,
+        verbose_name="Parcours de soins"
+    )
+    longue_maladie = models.BooleanField(
+        default=False,
+        verbose_name="Longue maladie"
+    )
+    code_reel = models.CharField(
+        max_length=50,
+        null=True,
+        blank=True,
+        verbose_name="Code réel"
+    )
     variable_1 = models.CharField(
         max_length=1,
         null=True,
@@ -92,9 +142,11 @@ class Facturation(models.Model):
 
     date_acte = models.DateField(
         verbose_name="Date de l'acte"
+        #default=timezone.localdate
     )
     date_facture = models.DateField(
         verbose_name="Date de la facture"
+        #default=timezone.localdate
     )
 
     REGIME_CHOICES = [
@@ -114,18 +166,14 @@ class Facturation(models.Model):
         verbose_name="Droits ouverts : (oui/non)"
     )
 
-    regime_tp = models.BooleanField(
-        default=False,
-        verbose_name="Tiers Payants : (oui/non)"
-    )
-
     regime_lm = models.BooleanField(
         default=False,
         verbose_name="Régime LM (oui/non)"
     )
 
     LIEU_CHOICES = [
-        ('Cabinet', 'Cabinet'),
+        ('cabinet', 'Cabinet'),
+        ('clinique', 'Clinique')
     ]
     lieu_acte = models.CharField(
         max_length=50,
@@ -173,16 +221,15 @@ class Facturation(models.Model):
     )
 
     STATUT_CHOICES = [
-        ('RAS', 'RAS'),
-        ('DNO', 'DNO'),
-        ('DNOLM', 'DNOLM'),
-        ('Impayé', 'Impayé'),
-        ('Rejet', 'Rejet'),
+        ('ras', 'RAS'),
+        ('dno', 'DNO'),
+        ('dnolm', 'DNOLM'),
+        ('impaye', 'Impayé'),
+        ('rejet', 'Rejet'),
     ]
     statut_dossier = models.CharField(
         max_length=20,
         choices=STATUT_CHOICES,
-        default='RAS',
         verbose_name="Statut du dossier"
     )
 
@@ -215,14 +262,17 @@ class Facturation(models.Model):
 # Nouvelle table Paiement
 class Paiement(models.Model):
     # On suppose qu'un paiement correspond à une facture unique.
-    facture = models.OneToOneField(Facturation, on_delete=models.CASCADE, related_name='paiement')
+    facture = models.OneToOneField(
+        Facturation,
+        on_delete=models.CASCADE,
+        related_name='paiement'
+    )
     date = models.DateField(
         verbose_name="Date de paiement",
         null=True,
         blank=True
     )
     MODALITE_CHOICES = [
-        #('-----', '-----'),
         ('CB', 'Carte Bancaire'),
         ('Chèque', 'Chèque'),
         ('Liquide', 'Liquide'),
@@ -264,7 +314,7 @@ class Paiement(models.Model):
     )
 
     def __str__(self):
-        return f"{self.date} – {self.montant} xpf – {'Oui' if self.liste else 'Non'}"
+        return f"{self.date} – {self.montant}€ – {'Oui' if self.liste else 'Non'}"
 
     def save(self, *args, **kwargs):
         # Avant de sauvegarder, on remplit la date et le montant à partir de la facture associée s'ils ne sont pas renseignés.
@@ -277,28 +327,3 @@ class Paiement(models.Model):
 
     def __str__(self):
         return f"Paiement de facture {self.facture.numero_facture} - {self.montant} xpf"
-
-from django.db import models
-
-class Statistique(models.Model):
-    """
-    Statistiques mensuelles de l'activité par lieu.
-    """
-    year = models.PositiveSmallIntegerField(verbose_name="Année")
-    month = models.PositiveSmallIntegerField(verbose_name="Mois (1-12)")
-    total_acte_cabinet = models.DecimalField(
-        max_digits=12,
-        decimal_places=2,
-        verbose_name="Total des actes au Cabinet"
-    )
-    total_acte_clinique = models.DecimalField(
-        max_digits=12,
-        decimal_places=2,
-        verbose_name="Total des actes en Clinique"
-    )
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Date de création")
-
-    class Meta:
-        unique_together = (('year', 'month'),)
-        verbose_name = "Statistique mensuelle"
-        verbose_name_plural = "Statistiques mensuelles"

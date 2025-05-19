@@ -1,7 +1,8 @@
 from django import forms
 from django.utils import timezone
-from .models import Facturation, Paiement
+from .models import Facturation, Paiement, Code
 from .widgets import IntegerNumberInput, CodeSelectWidget
+import json
 
 class FacturationForm(forms.ModelForm):
     # Champs de paiement
@@ -27,6 +28,7 @@ class FacturationForm(forms.ModelForm):
         model = Facturation
         fields = '__all__'
         widgets = {
+            # Widget personnalisé pour gérer le tri et l'affichage dynamique
             'code_acte': CodeSelectWidget(attrs={'class': 'form-control'}),
             'date_naissance': forms.DateInput(
                 format='%Y-%m-%d',
@@ -49,30 +51,44 @@ class FacturationForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        # si c'est une création (pas d'instance en base)
+        # Tri ascendant des codes d'acte pour la liste déroulante
+        qs_codes = Code.objects.order_by('code_acte')
+        self.fields['code_acte'].queryset = qs_codes
+
+        # Préparation des données dynamiques pour le JS
+        codes_data = {}
+        for code in qs_codes:
+            codes_data[code.pk] = {
+                'total_acte': str(int(code.total_acte or 0)),
+                'total_acte_1': str(int(code.total_acte_1 or 0)),
+                'total_acte_2': str(int(code.total_acte_2 or 0)),
+                'tiers_payant': str(int(code.tiers_payant or 0)),
+                'total_paye': str(int(code.total_paye or 0)),
+                'code_acte_normal': code.code_acte_normal or "",
+                'code_acte_normal_2': code.code_acte_normal_2 or "",
+            }
+        # Injection via attribut du widget (data-codes)
+        widget = self.fields['code_acte'].widget
+        widget.attrs.update({'data-codes': json.dumps(codes_data)})
+
+        # Initialisation des dates si création
         if not self.instance.pk:
             today = timezone.localdate()
-            self.fields['date_acte'].initial    = today
+            self.fields['date_acte'].initial = today
             self.fields['date_facture'].initial = today
-        
-        # Formats d’entrée pour les dates
+
+        # Formats d'entrée pour les dates
         for fname in ('date_naissance', 'date_acte', 'date_facture'):
             self.fields[fname].input_formats = ['%Y-%m-%d', '%d/%m/%Y']
 
-        # Rendre certains champs facultatifs
-        for fname in ('tiers_payant', 'total_paye', 'numero_facture',
-                      'code_acte', 'total_acte'):
-            self.fields[fname].required = False
-
-        # Pré-remplissage du paiement existant, si on édite
-        if self.instance.pk:
-            try:
-                paiement = self.instance.paiement
-                self.fields['modalite_paiement'].initial = paiement.modalite_paiement
-                self.fields['banque'].initial = paiement.banque
-                self.fields['porteur'].initial = paiement.porteur
-            except Paiement.DoesNotExist:
-                pass
+                        # Champs facultatifs
+        optional_fields = [
+            'tiers_payant', 'total_paye', 'numero_facture',
+            'code_acte', 'total_acte', 'lieu_acte', 'regime_tp'
+        ]
+        for fname in optional_fields:
+            if fname in self.fields:
+                self.fields[fname].required = False
 
         # Réordonnancement : modalite_paiement, banque, porteur après total_paye
         order = list(self.fields.keys())
@@ -86,42 +102,32 @@ class FacturationForm(forms.ModelForm):
 
     def clean(self):
         cleaned = super().clean()
-
-        # Paiement par chèque → banque et porteur obligatoires
+        # Validation pour paiements par chèque
         if cleaned.get('modalite_paiement') == 'Chèque':
             if not cleaned.get('banque'):
                 self.add_error('banque', "Ce champ est requis pour les paiements par chèque.")
             if not cleaned.get('porteur'):
                 self.add_error('porteur', "Ce champ est requis pour les paiements par chèque.")
-
-        # Régime longue maladie → numero_facture obligatoire
+        # Validation pour régime longue maladie
         if cleaned.get('regime_lm') and not cleaned.get('numero_facture'):
             self.add_error('numero_facture',
                 "Le numéro de facture est requis pour un régime longue maladie."
             )
-
         return cleaned
 
     def save(self, commit=True):
-        # On récupère d'abord l'instance sans l'enregistrer
         fact = super().save(commit=False)
         user_num = self.cleaned_data.get('numero_facture')
         code = fact.code_acte
-
         if user_num:
-            # L'utilisateur a saisi manuellement un numéro → on le garde
             fact.numero_facture = user_num
         elif code and not code.parcours_soin:
-            # Pas de saisie + hors parcours de soins → on génère automatiquement
             now = timezone.localtime()
             fact.numero_facture = now.strftime("FQ/%Y/%m/%d/%H:%M")
         else:
-            # Parcours de soins ou aucune condition → on vide le champ
             fact.numero_facture = ''
-
         if commit:
             fact.save()
-
         # Gestion du modèle Paiement
         modalite = self.cleaned_data.get('modalite_paiement')
         if modalite:
@@ -134,12 +140,4 @@ class FacturationForm(forms.ModelForm):
                 paiement.banque = ''
                 paiement.porteur = ''
             paiement.save()
-
         return fact
-    
-    def form_valid(self, form):
-        inst = form.save(commit=False)
-        if not inst.date_facture:
-            inst.date_facture = timezone.localdate()
-        inst.save()
-        return super().form_valid(form)

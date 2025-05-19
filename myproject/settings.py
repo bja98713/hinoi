@@ -9,8 +9,7 @@ SECRET_KEY = 'changez-moi-avec-une-clé-secrète-unique'
 
 DEBUG = True  # En production, mettez False
 
-ALLOWED_HOSTS = ['flotahiti.pythonanywhere.com','127.0.0.1']  # En production, mettez votre nom de domaine ou IP
-
+ALLOWED_HOSTS = ['flotahiti.pythonanywhere.com', '127.0.0.1']  # En production, mettez votre nom de domaine ou IP
 
 # Application 'comptabilite' + apps par défaut
 INSTALLED_APPS = [
@@ -20,7 +19,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'comptabilite',
+    'comptabilite',  # Notre application
 ]
 
 MIDDLEWARE = [
@@ -80,14 +79,3 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 LOGIN_URL = '/accounts/login/'
 LOGIN_REDIRECT_URL = '/facturation/'  # ou l’URL vers laquelle l’utilisateur authentifié doit être envoyé
 LOGOUT_REDIRECT_URL = 'login'
-
-EMAIL_BACKEND       = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST          = 'smtp.gmail.com'
-EMAIL_PORT          = 587
-EMAIL_USE_TLS       = True
-
-EMAIL_HOST_USER     = 'ja.bronstein@gmail.com'
-EMAIL_HOST_PASSWORD = 'afwg flrc buze usok'
-
-DEFAULT_FROM_EMAIL  = 'Pr. Jean-Ariel Bronstein <ja.bronstein@gmail.com>'
-
