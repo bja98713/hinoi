@@ -9,13 +9,12 @@ from .models import Facturation, Code, Paiement
 from .forms import FacturationForm
 from django.utils import timezone
 
+import json
 import pdfkit
 from django.conf import settings
-
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
-
-from datetime import timedelta
+from datetime import timedelta, date
 import calendar
 
 # Vue de recherche
@@ -34,16 +33,15 @@ class FacturationSearchListView(ListView):
 
         # Filtre semaine (lundi→dimanche)
         if self.request.GET.get('week'):
-            # weekday(): lundi=0…dimanche=6
             start_of_week = today - timedelta(days=today.weekday())
-            end_of_week   = start_of_week + timedelta(days=6)
+            end_of_week = start_of_week + timedelta(days=6)
             qs = qs.filter(date_acte__gte=start_of_week, date_acte__lte=end_of_week)
 
         # Filtre mois
         if self.request.GET.get('month'):
             first_of_month = today.replace(day=1)
-            last_day       = calendar.monthrange(today.year, today.month)[1]
-            last_of_month  = today.replace(day=last_day)
+            last_day = calendar.monthrange(today.year, today.month)[1]
+            last_of_month = today.replace(day=last_day)
             qs = qs.filter(date_acte__gte=first_of_month, date_acte__lte=last_of_month)
 
         return qs
@@ -51,26 +49,19 @@ class FacturationSearchListView(ListView):
 # Vue pour la liste des facturations
 class FacturationListView(LoginRequiredMixin, ListView):
     login_url = 'login'
-    redirect_field_name = 'next'   # paramètre renvoyé après login
+    redirect_field_name = 'next'
     model = Facturation
     template_name = 'comptabilite/facturation_list.html'
     context_object_name = 'facturations'
 
     def get_queryset(self):
         qs = super().get_queryset()
-        # Si on a coché la case “today” dans le GET, on ne garde que les factures du jour
         if self.request.GET.get('today'):
             today = timezone.localdate()
             qs = qs.filter(date_acte=today)
         return qs
 
 # Vue de création avec le formulaire personnalisé
-import json
-from django.views.generic import CreateView
-from django.urls import reverse_lazy
-from .models import Facturation, Code
-from .forms import FacturationForm
-
 class FacturationCreateView(CreateView):
     model = Facturation
     form_class = FacturationForm
@@ -79,20 +70,21 @@ class FacturationCreateView(CreateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        # Charger tous les codes et préparer un dictionnaire avec les données à transmettre
         codes = Code.objects.all()
         codes_data = {}
         for code in codes:
-            # On indexe par la valeur du champ code_acte, ou vous pouvez utiliser code.pk
             codes_data[code.code_acte] = {
                 'total_acte': str(code.total_acte),
+                'total_acte_1': str(code.total_acte_1 or 0),
+                'total_acte_2': str(code.total_acte_2 or 0),
                 'tiers_payant': str(code.tiers_payant),
                 'total_paye': str(code.total_paye),
+                'code_acte_normal_2': code.code_acte_normal_2 or "",
             }
         context['codes_data'] = json.dumps(codes_data)
         return context
 
-# Vue de mise à jour avec le formulaire personnalisé
+# Vue de mise à jour
 class FacturationUpdateView(UpdateView):
     model = Facturation
     form_class = FacturationForm
@@ -109,6 +101,7 @@ class FacturationDetailView(DetailView):
     template_name = 'comptabilite/facturation_detail.html'
     context_object_name = 'facturation'
 
+# AJAX - vérification DN
 def check_dn(request):
     dn = request.GET.get('dn')
     if dn:
@@ -118,43 +111,43 @@ def check_dn(request):
                 'dn': fact.dn,
                 'nom': fact.nom,
                 'prenom': fact.prenom,
-                'date_naissance': fact.date_naissance.strftime('%Y-%m-%d'),  # Format ISO attendu par type="date"
+                'date_naissance': fact.date_naissance.strftime('%Y-%m-%d'),
             }
             return JsonResponse({'exists': True, 'patient': data})
         except Facturation.DoesNotExist:
             pass
     return JsonResponse({'exists': False})
 
+# AJAX - vérification Code
 def check_acte(request):
     code_value = request.GET.get('code')
     if code_value:
         try:
-            # Récupère l'objet Code par sa clé primaire
             code_obj = Code.objects.get(pk=code_value)
             data = {
                 'total_acte': str(int(round(code_obj.total_acte))),
+                'total_acte_1': str(int(round(code_obj.total_acte_1))),
+                'total_acte_2': str(int(round(code_obj.total_acte_2))),
                 'tiers_payant': str(int(round(code_obj.tiers_payant))),
                 'total_paye': str(int(round(code_obj.total_paye))),
+                'code_acte_normal_2': code_obj.code_acte_normal_2 or "",
             }
             return JsonResponse({'exists': True, 'data': data})
         except Code.DoesNotExist:
             return JsonResponse({'exists': False})
     return JsonResponse({'exists': False})
 
-
+# PDF Facture
 from django.shortcuts import get_object_or_404
-from django.utils import timezone
 
 def print_facture(request, pk):
     facture = get_object_or_404(Facturation, pk=pk)
     response = HttpResponse(content_type='application/pdf')
-    response['Content-Disposition'] = 'attachment; filename="facture_{}.pdf"'.format(facture.numero_facture or facture.pk)
+    response['Content-Disposition'] = f'attachment; filename="facture_{facture.numero_facture or facture.pk}.pdf"'
     c = canvas.Canvas(response, pagesize=A4)
     largeur, hauteur = A4
 
-
-
-    # Récupération des données
+    # Données Facturation
     nom = facture.nom
     prenom = facture.prenom
     date_naissance = facture.date_naissance.strftime("%d/%m/%Y") if facture.date_naissance else ""
@@ -163,57 +156,68 @@ def print_facture(request, pk):
     total_acte = str(facture.total_acte)
     total_paye = str(facture.total_paye)
     tiers_payant = str(facture.tiers_payant)
+    total_acte_1 = str(facture.code_acte.total_acte_1)
+    total_acte_2 = str(facture.code_acte.total_acte_2)
 
     code_obj = facture.code_acte
     if code_obj:
         code_acte_normal = code_obj.code_acte_normal or ""
+        code_acte_normal_2 = code_obj.code_acte_normal_2 or ""
         variable_1 = code_obj.variable_1 or ""
         modificateur = code_obj.modificateur or ""
         variable_2 = code_obj.variable_2 or ""
         ps = "X" if code_obj.parcours_soin else ""
     else:
-        code_acte_normal = ""
-        variable_1 = ""
-        modificateur = ""
-        variable_2 = ""
-        ps = ""
+        code_acte_normal = code_acte_normal_2 = variable_1 = modificateur = variable_2 = ps = ""
 
+    # Médecin
     if code_obj and code_obj.medecin:
         nom_medecin = code_obj.medecin.nom_medecin
         nom_clinique = code_obj.medecin.nom_clinique
         code_m = code_obj.medecin.code_m
     else:
-        nom_medecin = ""
-        nom_clinique = ""
-        code_m = ""
+        nom_medecin = nom_clinique = code_m = ""
 
-    regime_lm = ""
-    if hasattr(facture, 'regime_lm'):
-        regime_lm = "X" if facture.regime_lm else ""
+    regime_lm = "X" if getattr(facture, 'regime_lm', False) else ""
 
-    # Si hors parcours de soins ET pas encore de numéro, on le génère et on enregistre
-    if not facture.code_acte.parcours_soin and not facture.numero_facture:
+    # Génération numéro facture si nécessaire
+    if code_obj and not code_obj.parcours_soin and not facture.numero_facture:
         now = timezone.localtime()
         facture.numero_facture = now.strftime("FQ/%Y/%m/%d/%H:%M")
         facture.save()
 
-    c.drawString(2.0 * cm, hauteur - 4.3 * cm, f"{nom}")
-    c.drawString(12.5 * cm, hauteur - 4.3 * cm, f"{prenom}")
-    c.drawString(16.0 * cm, hauteur - 5.2 * cm, f"{date_naissance}")
-    c.drawString(2.0 * cm, hauteur - 5.2 * cm, f"{dn}")
-    c.drawString(2.0 * cm, hauteur - 13.0 * cm, f"{nom_medecin}")
-    c.drawString(2.0 * cm, hauteur - 13.5 * cm, f"{nom_clinique}")
-    c.drawString(10.0 * cm, hauteur - 12.8 * cm, f"{code_m}")
-    c.drawString(2.8 * cm, hauteur - 14.9 * cm, f"{ps}")
+    # juste avant vos drawString, définissez vos variables :
+    special_codes = {"QZFA036", "QZFA004", "QZFA031"}
+
+    # Placement dans PDF
+    c.drawString(2.0*cm, hauteur-4.3*cm, f"{nom}")
+    c.drawString(12.5*cm, hauteur-4.3*cm, f"{prenom}")
+    c.drawString(16.0*cm, hauteur-5.2*cm, f"{date_naissance}")
+    c.drawString(2.0*cm, hauteur-5.2*cm, f"{dn}")
+    c.drawString(2.0*cm, hauteur-13.0*cm, f"{nom_medecin}")
+    c.drawString(2.0*cm, hauteur-13.5*cm, f"{nom_clinique}")
+    c.drawString(10.0*cm, hauteur-12.8*cm, f"{code_m}")
+    c.drawString(2.8*cm, hauteur-14.9*cm, f"{ps}")
     if facture.regime_lm:
-        c.drawString(0.6 * cm, hauteur - 16.7 * cm, f"{regime_lm}")
-    c.drawString(0.6 * cm, hauteur - 20.3 * cm, f"{date_facture}")
-    c.drawString(4.0 * cm, hauteur - 20.3 * cm, f"{code_acte_normal}")
-    c.drawString(7.2 * cm, hauteur - 20.3 * cm, f"{variable_1}")
-    c.drawString(7.5 * cm, hauteur - 20.3 * cm, f"{modificateur}")
-    c.drawString(11.4 * cm, hauteur - 20.3 * cm, f"{variable_2}")
-    c.drawString(12.5 * cm, hauteur - 20.3 * cm, f"{total_acte}")
-    c.drawString(10.0 * cm, hauteur - 23.9 * cm, f"{total_acte}")
+        c.drawString(0.6*cm, hauteur-16.7*cm, f"{regime_lm}")
+    c.drawString(0.6*cm, hauteur-20.3*cm, f"{date_facture}")
+    c.drawString(4.0*cm, hauteur-20.3*cm, f"{code_acte_normal}")
+    c.drawString(7.5*cm,  hauteur-20.3*cm, f"{modificateur}")
+    
+    
+    c.drawString(7.2*cm,  hauteur-20.3*cm, f"{variable_1}")
+    c.drawString(11.4*cm, hauteur-20.3*cm, f"{variable_2}")
+    c.drawString(12.5*cm,hauteur-20.3*cm, f"{ total_acte_1 if code_acte_normal in special_codes else total_acte }")
+    #c.drawString(12.5*cm, hauteur-20.3*cm, f"{total_acte}")
+    #c.drawString(14.5*cm, hauteur-20.3*cm, f"{total_acte_1}")
+
+    if code_acte_normal in special_codes:
+        c.drawString(0.6*cm, hauteur-20.7*cm, f"{date_facture}")
+        c.drawString(4.0*cm, hauteur-20.7*cm, f"{code_acte_normal_2}")
+        c.drawString(7.2*cm, hauteur-20.7*cm, f"{variable_1}")
+        c.drawString(12.5*cm, hauteur-20.7*cm, f"{total_acte_2}")
+    
+    c.drawString(10.0 * cm, hauteur - 23.9 * cm, f"{f"{total_acte}"}")
     if facture.regime_lm:
         c.drawString(7.5 * cm, hauteur - 27.5 * cm, f"{total_paye}")
         c.drawString(11.5 * cm, hauteur - 27.5 * cm, f"{tiers_payant}")
@@ -808,13 +812,3 @@ class ComptabiliteSummaryView(LoginRequiredMixin, ListView):
         }
 
         return ctx
-
-
-
-
-
-
-
-
-
-
