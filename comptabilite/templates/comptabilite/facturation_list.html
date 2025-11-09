@@ -44,7 +44,7 @@
       </tr>
     </thead>
     <tbody>
-      {% for facturation in facturations reversed %}
+  {% for facturation in facturations %}
       <tr>
         <td>{{ facturation.date_acte|date:"d/m/Y" }}</td>
         <td>{{ facturation.numero_facture }}</td>
@@ -75,6 +75,32 @@
       {% endfor %}
     </tbody>
   </table>
+
+  {% if is_paginated %}
+  <nav aria-label="Pagination facturations">
+    <ul class="pagination">
+      {% if page_obj.has_previous %}
+        <li class="page-item">
+          <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.today %}&today=1{% endif %}{% if request.GET.week %}&week=1{% endif %}{% if request.GET.month %}&month=1{% endif %}">Précédent</a>
+        </li>
+      {% else %}
+        <li class="page-item disabled"><span class="page-link">Précédent</span></li>
+      {% endif %}
+
+      <li class="page-item disabled">
+        <span class="page-link">Page {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+      </li>
+
+      {% if page_obj.has_next %}
+        <li class="page-item">
+          <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.today %}&today=1{% endif %}{% if request.GET.week %}&week=1{% endif %}{% if request.GET.month %}&month=1{% endif %}">Suivant</a>
+        </li>
+      {% else %}
+        <li class="page-item disabled"><span class="page-link">Suivant</span></li>
+      {% endif %}
+    </ul>
+  </nav>
+  {% endif %}
 </div>
 
 {# Charger jQuery une seule fois #}

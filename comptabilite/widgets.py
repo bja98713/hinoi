@@ -14,7 +14,6 @@ class IntegerNumberInput(NumberInput):
 
 from django import forms
 from django.forms.models import ModelChoiceIteratorValue
-from .models import Code
 
 class CodeSelectWidget(forms.Select):
     """
@@ -38,23 +37,16 @@ class CodeSelectWidget(forms.Select):
             # pas de code sélectionné
             return option
 
-        try:
-            code_obj = Code.objects.get(pk=raw_pk)
-        except (Code.DoesNotExist, ValueError):
+        # Les métadonnées sont injectées par le formulaire pour éviter une requête par option.
+        metadata = getattr(self, 'code_metadata', {})
+        code_data = metadata.get(str(raw_pk))
+        if not code_data:
             return option
 
-        def to_int_str(v):
-            if v is None:
-                return "0"
-            try:
-                return str(int(round(v)))
-            except Exception:
-                return "0"
-
         option['attrs'].update({
-            'data-total_acte':   to_int_str(code_obj.total_acte),
-            'data-tiers_payant': to_int_str(code_obj.tiers_payant),
-            'data-total_paye':   to_int_str(code_obj.total_paye),
+            'data-total_acte':   code_data.get('total_acte', '0'),
+            'data-tiers_payant': code_data.get('tiers_payant', '0'),
+            'data-total_paye':   code_data.get('total_paye', '0'),
         })
         return option
 

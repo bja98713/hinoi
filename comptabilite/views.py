@@ -18,13 +18,30 @@ from datetime import timedelta, date
 import calendar
 
 # Vue de recherche
+class SafePaginationMixin:
+    """Utilise Paginator.get_page pour éviter les 404 lors de pages hors bornes."""
+
+    def paginate_queryset(self, queryset, page_size):
+        paginator = self.get_paginator(
+            queryset,
+            page_size,
+            orphans=self.get_paginate_orphans(),
+            allow_empty_first_page=self.get_allow_empty(),
+        )
+        page_number = self.request.GET.get(self.page_kwarg) or 1
+        page_obj = paginator.get_page(page_number)
+        return paginator, page_obj, page_obj.object_list, page_obj.has_other_pages()
+
+
 class FacturationSearchListView(ListView):
     model = Facturation
     template_name = 'comptabilite/facturation_search_list.html'
     context_object_name = 'facturations'
 
     def get_queryset(self):
-        qs = super().get_queryset()
+        qs = (super().get_queryset()
+              .select_related('code_acte', 'paiement')
+              .order_by('-date_acte', '-pk'))
         today = timezone.localdate()
 
         # Filtre jour
@@ -47,15 +64,18 @@ class FacturationSearchListView(ListView):
         return qs
 
 # Vue pour la liste des facturations
-class FacturationListView(LoginRequiredMixin, ListView):
+class FacturationListView(SafePaginationMixin, LoginRequiredMixin, ListView):
     login_url = 'login'
     redirect_field_name = 'next'
     model = Facturation
     template_name = 'comptabilite/facturation_list.html'
     context_object_name = 'facturations'
+    paginate_by = 50
 
     def get_queryset(self):
-        qs = super().get_queryset()
+        qs = (super().get_queryset()
+          .select_related('code_acte', 'paiement')
+          .order_by('-date_acte', '-pk'))
         if self.request.GET.get('today'):
             today = timezone.localdate()
             qs = qs.filter(date_acte=today)
@@ -73,12 +93,13 @@ class FacturationCreateView(CreateView):
         codes = Code.objects.all()
         codes_data = {}
         for code in codes:
-            codes_data[code.code_acte] = {
-                'total_acte': str(code.total_acte),
-                'total_acte_1': str(code.total_acte_1 or 0),
-                'total_acte_2': str(code.total_acte_2 or 0),
-                'tiers_payant': str(code.tiers_payant),
-                'total_paye': str(code.total_paye),
+            key = str(code.pk)
+            codes_data[key] = {
+                'total_acte': str(int(code.total_acte or 0)),
+                'total_acte_1': str(int(code.total_acte_1 or 0)),
+                'total_acte_2': str(int(code.total_acte_2 or 0)),
+                'tiers_payant': str(int(code.tiers_payant or 0)) if code.tiers_payant is not None else '0',
+                'total_paye': str(int(code.total_paye or 0)) if code.total_paye is not None else '0',
                 'code_acte_normal_2': code.code_acte_normal_2 or "",
             }
         context['codes_data'] = json.dumps(codes_data)
@@ -239,11 +260,12 @@ def create_bordereau(request):
     La vue calcule également le nombre de factures et la somme totale du tiers_payant.
     """
     # Sélectionner les factures à traiter
-    factures = Facturation.objects.filter(tiers_payant__gt=0).filter(
+    factures_qs = Facturation.objects.filter(tiers_payant__gt=0).filter(
         Q(numero_bordereau__isnull=True) | Q(numero_bordereau="")
     )
 
-    if not factures.exists():
+    factures = list(factures_qs)
+    if not factures:
         return render(request, 'comptabilite/bordereau.html', {
             'error': "Aucune facture à traiter pour le bordereau."
         })
@@ -257,14 +279,16 @@ def create_bordereau(request):
     num_bordereau = f"M-{year}-{month:02d}-{week:02d}-{day_of_year:03d}"
 
     # Mettre à jour chaque facture avec le numéro et la date du bordereau
+    factures_qs.update(numero_bordereau=num_bordereau, date_bordereau=today)
+
+    # Mettre à jour les instances en mémoire pour l'affichage
     for facture in factures:
         facture.numero_bordereau = num_bordereau
         facture.date_bordereau = today
-        facture.save()
 
     # Calculer le nombre de factures et la somme totale du tiers_payant
-    count = factures.count()
-    total_tiers_payant = sum(facture.tiers_payant for facture in factures)
+    count = len(factures)
+    total_tiers_payant = sum((facture.tiers_payant or 0) for facture in factures)
 
     context = {
         'factures': factures,
@@ -336,13 +360,16 @@ from django.db.models import Sum
 from .models import Facturation
 from datetime import datetime
 
-class ActivityListView(ListView):
+class ActivityListView(SafePaginationMixin, ListView):
     model = Facturation
     template_name = 'comptabilite/activity_list.html'
     context_object_name = 'factures'
+    paginate_by = 50
 
     def get_queryset(self):
-        queryset = super().get_queryset()
+        queryset = (super().get_queryset()
+                    .select_related('code_acte', 'paiement'))
+
         # Récupérer les paramètres de filtre
         date_str = self.request.GET.get('date')          # format attendu: 'YYYY-MM-DD' ou 'DD/MM/YYYY'
         start_date_str = self.request.GET.get('start_date')  # format ISO ou européen
@@ -388,7 +415,9 @@ class ActivityListView(ListView):
                 pass
 
         # Vous pouvez ajouter d'autres filtres si nécessaire.
-        return queryset.order_by('date_facture')
+        queryset = queryset.order_by('-date_facture', '-pk')
+        self._filtered_queryset = queryset
+        return queryset
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -398,7 +427,8 @@ class ActivityListView(ListView):
         context['end_date'] = self.request.GET.get('end_date', '')
         context['year'] = self.request.GET.get('year', '')
         # Calculer les totaux pour les trois dernières colonnes
-        aggregates = self.get_queryset().aggregate(
+        qs_all = getattr(self, '_filtered_queryset', self.object_list)
+        aggregates = qs_all.aggregate(
             sum_total_acte=Sum('total_acte'),
             sum_tiers_payant=Sum('tiers_payant'),
             sum_total_paye=Sum('total_paye')
@@ -515,7 +545,7 @@ def remise_cheque(request):
 
         # Recalculer le contexte pour le PDF
         count = cheques.count()
-        total = cheques.aggregate(total=models.Sum('montant'))['total'] or 0
+        total = cheques.aggregate(total=Sum('montant'))['total'] or 0
 
         context = {
             'cheques': cheques,
@@ -542,7 +572,7 @@ def remise_cheque(request):
         liste=False
     )
     count = cheques.count()
-    total = cheques.aggregate(total=models.Sum('montant'))['total'] or 0
+    total = cheques.aggregate(total=Sum('montant'))['total'] or 0
 
     return render(request, 'comptabilite/remise_cheque.html', {
         'cheques': cheques,
@@ -716,7 +746,8 @@ class ComptabiliteSummaryView(LoginRequiredMixin, ListView):
     redirect_field_name = 'next'
 
     def get_queryset(self):
-        qs = super().get_queryset()
+        qs = (super().get_queryset()
+              .select_related('code_acte', 'paiement'))
         period = self.request.GET.get('period', '')
         today = timezone.localdate()
 
@@ -731,11 +762,12 @@ class ComptabiliteSummaryView(LoginRequiredMixin, ListView):
         elif period == 'year':
             qs = qs.filter(date_facture__year=today.year)
 
+        self._summary_queryset = qs
         return qs
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        qs = self.get_queryset()
+        qs = getattr(self, '_summary_queryset', self.object_list)
 
         # paramètres de la vue
         ctx['period_choices'] = [
@@ -769,8 +801,7 @@ class ComptabiliteSummaryView(LoginRequiredMixin, ListView):
 
         # pivot par modalité
         if ctx['group_modalite']:
-            tmp = (qs.select_related('paiement')
-                     .values('paiement__modalite_paiement')
+            tmp = (qs.values('paiement__modalite_paiement')
                      .annotate(count=Count('id'),
                                total_acte=Sum('total_acte'),
                                total_paye=Sum('total_paye'))
@@ -790,8 +821,7 @@ class ComptabiliteSummaryView(LoginRequiredMixin, ListView):
 
         # pivot par code réel
         if ctx['group_code_reel']:
-            tmp = (qs.select_related('code_acte')
-                     .values('code_acte__code_reel')
+            tmp = (qs.values('code_acte__code_reel')
                      .annotate(count=Count('id'),
                                total_acte=Sum('total_acte'),
                                total_paye=Sum('total_paye'))

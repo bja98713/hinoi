@@ -55,21 +55,35 @@ class FacturationForm(forms.ModelForm):
         qs_codes = Code.objects.order_by('code_acte')
         self.fields['code_acte'].queryset = qs_codes
 
-        # Préparation des données dynamiques pour le JS
+        # Préparation des données dynamiques pour le JS et le widget sans requêtes supplémentaires
         codes_data = {}
+        widget_metadata = {}
         for code in qs_codes:
-            codes_data[code.pk] = {
-                'total_acte': str(int(code.total_acte or 0)),
+            key = str(code.pk)
+
+            total_acte = str(int(code.total_acte or 0))
+            tiers_payant = str(int(code.tiers_payant or 0))
+            total_paye = str(int(code.total_paye or 0))
+
+            codes_data[key] = {
+                'total_acte': total_acte,
                 'total_acte_1': str(int(code.total_acte_1 or 0)),
                 'total_acte_2': str(int(code.total_acte_2 or 0)),
-                'tiers_payant': str(int(code.tiers_payant or 0)),
-                'total_paye': str(int(code.total_paye or 0)),
+                'tiers_payant': tiers_payant,
+                'total_paye': total_paye,
                 'code_acte_normal': code.code_acte_normal or "",
                 'code_acte_normal_2': code.code_acte_normal_2 or "",
             }
-        # Injection via attribut du widget (data-codes)
+            widget_metadata[key] = {
+                'total_acte': total_acte,
+                'tiers_payant': tiers_payant,
+                'total_paye': total_paye,
+            }
+
+        # Injection via attribut du widget (data-codes) et cache local pour éviter les requêtes N+1
         widget = self.fields['code_acte'].widget
         widget.attrs.update({'data-codes': json.dumps(codes_data)})
+        widget.code_metadata = widget_metadata
 
         # Initialisation des dates si création
         if not self.instance.pk:
@@ -81,7 +95,7 @@ class FacturationForm(forms.ModelForm):
         for fname in ('date_naissance', 'date_acte', 'date_facture'):
             self.fields[fname].input_formats = ['%Y-%m-%d', '%d/%m/%Y']
 
-                        # Champs facultatifs
+        # Champs facultatifs
         optional_fields = [
             'tiers_payant', 'total_paye', 'numero_facture',
             'code_acte', 'total_acte', 'lieu_acte', 'regime_tp'
