@@ -104,6 +104,17 @@ class FacturationForm(forms.ModelForm):
             if fname in self.fields:
                 self.fields[fname].required = False
 
+        # Valeurs imposées par le métier : toujours sécurité sociale / droits ouverts / RAS
+        if 'regime' in self.fields:
+            self.fields['regime'].initial = 'Sécurité Sociale'
+            self.fields['regime'].disabled = True
+        if 'droit_ouvert' in self.fields:
+            self.fields['droit_ouvert'].initial = True
+            self.fields['droit_ouvert'].disabled = True
+        if 'statut_dossier' in self.fields:
+            self.fields['statut_dossier'].initial = 'ras'
+            self.fields['statut_dossier'].disabled = True
+
         # Réordonnancement : modalite_paiement, banque, porteur après total_paye
         order = list(self.fields.keys())
         for key in ('modalite_paiement', 'banque', 'porteur'):
@@ -116,6 +127,10 @@ class FacturationForm(forms.ModelForm):
 
     def clean(self):
         cleaned = super().clean()
+        # Champs imposés : même si désactivés, on force la valeur pour éviter toute incohérence.
+        cleaned['regime'] = 'Sécurité Sociale'
+        cleaned['droit_ouvert'] = True
+        cleaned['statut_dossier'] = 'ras'
         # Validation pour paiements par chèque
         if cleaned.get('modalite_paiement') == 'Chèque':
             if not cleaned.get('banque'):

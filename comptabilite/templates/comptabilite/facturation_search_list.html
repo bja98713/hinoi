@@ -2,9 +2,69 @@
 {% block content %}
 <div class="table-responsive">
   <h1>Recherche de facturations</h1>
-  <form method="get" class="form-inline mb-3">
-    <input type="text" name="q" class="form-control mr-2" placeholder="Rechercher...">
-    <button type="submit" class="btn btn-primary">Rechercher</button>
+  <form method="get" class="mb-4">
+    <div class="row">
+      <div class="col-md-4 mb-3">
+        <label for="id_numero_facture">Numéro facture</label>
+        <input type="text" id="id_numero_facture" name="numero_facture" class="form-control" value="{{ numero_facture }}">
+      </div>
+      <div class="col-md-4 mb-3">
+        <label for="id_dn">Numéro DN</label>
+        <input type="text" id="id_dn" name="dn" class="form-control" value="{{ dn }}">
+      </div>
+      <div class="col-md-4 mb-3">
+        <label for="id_code_acte">Code acte</label>
+        <input type="text" id="id_code_acte" name="code_acte" class="form-control" value="{{ code_acte }}">
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-md-4 mb-3">
+        <label for="id_nom">Nom</label>
+        <input type="text" id="id_nom" name="nom" class="form-control" value="{{ nom }}">
+      </div>
+      <div class="col-md-4 mb-3">
+        <label for="id_prenom">Prénom</label>
+        <input type="text" id="id_prenom" name="prenom" class="form-control" value="{{ prenom }}">
+      </div>
+      <div class="col-md-4 mb-3">
+        <label for="id_q">Recherche générale</label>
+        <input type="text" id="id_q" name="q" class="form-control" value="{{ q }}" placeholder="Nom, DN, code...">
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-md-4 mb-3">
+        <label for="id_date_naissance">Date de naissance</label>
+        <input type="date" id="id_date_naissance" name="date_naissance" class="form-control" value="{{ date_naissance }}">
+      </div>
+      <div class="col-md-4 mb-3">
+        <label for="id_date_acte">Date de l'acte</label>
+        <input type="date" id="id_date_acte" name="date_acte" class="form-control" value="{{ date_acte }}">
+      </div>
+      <div class="col-md-4 mb-3">
+        <label>&nbsp;</label>
+        <div class="form-control border-0 p-0">
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="id_today" name="today" value="1" {% if today %}checked{% endif %}>
+            <label class="form-check-label" for="id_today">Actes du jour</label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="id_week" name="week" value="1" {% if week %}checked{% endif %}>
+            <label class="form-check-label" for="id_week">Actes de la semaine</label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="id_month" name="month" value="1" {% if month %}checked{% endif %}>
+            <label class="form-check-label" for="id_month">Actes du mois</label>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="d-flex justify-content-end gap-2">
+      <button type="submit" class="btn btn-primary mr-2">Rechercher</button>
+      <a href="{% url 'facturation_search_list' %}" class="btn btn-outline-secondary">Réinitialiser</a>
+    </div>
   </form>
 
   <table class="table table-bordered table-striped">
@@ -40,7 +100,7 @@
       </tr>
       {% empty %}
       <tr>
-        <td colspan="7">Aucune facturation trouvée.</td>
+        <td colspan="9">Aucune facturation trouvée.</td>
       </tr>
       {% endfor %}
     </tbody>

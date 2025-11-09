@@ -32,6 +32,34 @@
         <input type="text" id="id_year" name="year" class="form-control" placeholder="2025" value="{{ year }}">
       </div>
     </fieldset>
+
+    <fieldset class="mb-3 border p-3">
+      <legend class="w-auto px-2">Filtres complémentaires</legend>
+      <div class="form-group">
+        <label for="id_numero_facture">Numéro facture :</label>
+        <input type="text" id="id_numero_facture" name="numero_facture" class="form-control" value="{{ numero_facture }}">
+      </div>
+      <div class="form-group">
+        <label for="id_dn">Numéro DN :</label>
+        <input type="text" id="id_dn" name="dn" class="form-control" value="{{ dn }}">
+      </div>
+      <div class="form-group">
+        <label for="id_nom">Nom :</label>
+        <input type="text" id="id_nom" name="nom" class="form-control" value="{{ nom }}">
+      </div>
+      <div class="form-group">
+        <label for="id_prenom">Prénom :</label>
+        <input type="text" id="id_prenom" name="prenom" class="form-control" value="{{ prenom }}">
+      </div>
+      <div class="form-group">
+        <label for="id_date_naissance">Date de naissance :</label>
+        <input type="text" id="id_date_naissance" name="date_naissance" class="form-control datepicker" placeholder="JJ/MM/AAAA" value="{{ date_naissance }}">
+      </div>
+      <div class="form-group">
+        <label for="id_code_acte">Code acte :</label>
+        <input type="text" id="id_code_acte" name="code_acte" class="form-control" value="{{ code_acte }}">
+      </div>
+    </fieldset>
     
     <button type="submit" class="btn btn-primary">Rechercher</button>
   </form>

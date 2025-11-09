@@ -14,7 +14,7 @@ import pdfkit
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
-from datetime import timedelta, date
+from datetime import timedelta, date, datetime
 import calendar
 
 # Vue de recherche
@@ -61,7 +61,65 @@ class FacturationSearchListView(ListView):
             last_of_month = today.replace(day=last_day)
             qs = qs.filter(date_acte__gte=first_of_month, date_acte__lte=last_of_month)
 
+        numero_facture = self.request.GET.get('numero_facture')
+        if numero_facture:
+            qs = qs.filter(numero_facture__icontains=numero_facture)
+
+        dn = self.request.GET.get('dn')
+        if dn:
+            qs = qs.filter(dn__icontains=dn)
+
+        nom = self.request.GET.get('nom')
+        if nom:
+            qs = qs.filter(nom__icontains=nom)
+
+        prenom = self.request.GET.get('prenom')
+        if prenom:
+            qs = qs.filter(prenom__icontains=prenom)
+
+        date_naissance = self._parse_date(self.request.GET.get('date_naissance'))
+        if date_naissance:
+            qs = qs.filter(date_naissance=date_naissance)
+
+        date_acte = self._parse_date(self.request.GET.get('date_acte'))
+        if date_acte:
+            qs = qs.filter(date_acte=date_acte)
+
+        code_acte = self.request.GET.get('code_acte')
+        if code_acte:
+            qs = qs.filter(code_acte__code_acte__icontains=code_acte)
+
+        query = self.request.GET.get('q')
+        if query:
+            qs = qs.filter(
+                Q(numero_facture__icontains=query)
+                | Q(dn__icontains=query)
+                | Q(nom__icontains=query)
+                | Q(prenom__icontains=query)
+                | Q(code_acte__code_acte__icontains=query)
+            )
+
         return qs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        for key in [
+            'today', 'week', 'month', 'numero_facture', 'dn', 'nom', 'prenom',
+            'date_naissance', 'date_acte', 'code_acte', 'q'
+        ]:
+            context[key] = self.request.GET.get(key, '')
+        return context
+
+    @staticmethod
+    def _parse_date(value):
+        if not value:
+            return None
+        for fmt in ('%Y-%m-%d', '%d/%m/%Y'):
+            try:
+                return datetime.strptime(value, fmt).date()
+            except ValueError:
+                continue
+        return None
 
 # Vue pour la liste des facturations
 class FacturationListView(SafePaginationMixin, LoginRequiredMixin, ListView):
@@ -415,6 +473,30 @@ class ActivityListView(SafePaginationMixin, ListView):
                 pass
 
         # Vous pouvez ajouter d'autres filtres si nécessaire.
+        numero_facture = self.request.GET.get('numero_facture')
+        if numero_facture:
+            queryset = queryset.filter(numero_facture__icontains=numero_facture)
+
+        dn = self.request.GET.get('dn')
+        if dn:
+            queryset = queryset.filter(dn__icontains=dn)
+
+        nom = self.request.GET.get('nom')
+        if nom:
+            queryset = queryset.filter(nom__icontains=nom)
+
+        prenom = self.request.GET.get('prenom')
+        if prenom:
+            queryset = queryset.filter(prenom__icontains=prenom)
+
+        date_naissance = self._parse_date(self.request.GET.get('date_naissance'))
+        if date_naissance:
+            queryset = queryset.filter(date_naissance=date_naissance)
+
+        code_acte = self.request.GET.get('code_acte')
+        if code_acte:
+            queryset = queryset.filter(code_acte__code_acte__icontains=code_acte)
+
         queryset = queryset.order_by('-date_facture', '-pk')
         self._filtered_queryset = queryset
         return queryset
@@ -426,6 +508,12 @@ class ActivityListView(SafePaginationMixin, ListView):
         context['start_date'] = self.request.GET.get('start_date', '')
         context['end_date'] = self.request.GET.get('end_date', '')
         context['year'] = self.request.GET.get('year', '')
+        context['numero_facture'] = self.request.GET.get('numero_facture', '')
+        context['dn'] = self.request.GET.get('dn', '')
+        context['nom'] = self.request.GET.get('nom', '')
+        context['prenom'] = self.request.GET.get('prenom', '')
+        context['date_naissance'] = self.request.GET.get('date_naissance', '')
+        context['code_acte'] = self.request.GET.get('code_acte', '')
         # Calculer les totaux pour les trois dernières colonnes
         qs_all = getattr(self, '_filtered_queryset', self.object_list)
         aggregates = qs_all.aggregate(
@@ -437,6 +525,17 @@ class ActivityListView(SafePaginationMixin, ListView):
         context['sum_tiers_payant'] = aggregates['sum_tiers_payant'] or 0
         context['sum_total_paye'] = aggregates['sum_total_paye'] or 0
         return context
+
+    @staticmethod
+    def _parse_date(value):
+        if not value:
+            return None
+        for fmt in ('%Y-%m-%d', '%d/%m/%Y'):
+            try:
+                return datetime.strptime(value, fmt).date()
+            except ValueError:
+                continue
+        return None
 
 # comptabilite/views.py
 
